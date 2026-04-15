@@ -199,6 +199,8 @@ router.post('/locatario', async (req, res) => {
     image_url?: string | null
     organizer_name?: string
     organizer_avatar?: string | null
+    lat?: number | null
+    lng?: number | null
   }
 
   if (!body.title?.trim() || !body.description?.trim() || !body.event_date || !body.category) {
@@ -218,6 +220,8 @@ router.post('/locatario', async (req, res) => {
       image_url: body.image_url?.trim() || null,
       organizer_name: body.organizer_name ?? '',
       organizer_avatar: body.organizer_avatar ?? null,
+      lat: body.lat ?? null,
+      lng: body.lng ?? null,
     })
     .select('*')
     .single()
