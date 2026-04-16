@@ -4,6 +4,14 @@ import { badRequest, serverError } from '../utils/http'
 
 const router = Router()
 
+const EVENT_CATEGORIES = ['gastronomia', 'musica', 'cultura', 'networking', 'deporte', 'fiesta', 'teatro', 'arte'] as const
+
+type EventCategory = (typeof EVENT_CATEGORIES)[number]
+
+function isOneOf<T extends readonly string[]>(value: unknown, options: T): value is T[number] {
+  return typeof value === 'string' && options.includes(value)
+}
+
 router.use(withAuth)
 
 router.post('/like', async (req, res) => {
@@ -184,18 +192,9 @@ router.post('/locatario', async (req, res) => {
   const body = req.body as {
     title?: string
     description?: string
-    category?:
-      | 'gastronomia'
-      | 'musica'
-      | 'cultura'
-      | 'networking'
-      | 'deporte'
-      | 'fiesta'
-      | 'teatro'
-      | 'arte'
+    category?: EventCategory
     event_date?: string
     address?: string
-    price?: number | null
     image_url?: string | null
     organizer_name?: string
     organizer_avatar?: string | null
@@ -205,6 +204,15 @@ router.post('/locatario', async (req, res) => {
     return badRequest(res, 'Titulo, descripcion, categoria y fecha son obligatorios.')
   }
 
+  if (!isOneOf(body.category, EVENT_CATEGORIES)) {
+    return badRequest(res, 'La categoria del evento no es valida.')
+  }
+
+  const eventDate = new Date(body.event_date)
+  if (Number.isNaN(eventDate.getTime())) {
+    return badRequest(res, 'La fecha del evento no es valida.')
+  }
+
   const { data, error } = await req.supabase!
     .from('locatario_events')
     .insert({
@@ -212,9 +220,8 @@ router.post('/locatario', async (req, res) => {
       title: body.title.trim(),
       description: body.description.trim(),
       category: body.category,
-      event_date: new Date(body.event_date).toISOString(),
+      event_date: eventDate.toISOString(),
       address: body.address?.trim() ?? '',
-      price: body.price ?? null,
       image_url: body.image_url?.trim() || null,
       organizer_name: body.organizer_name ?? '',
       organizer_avatar: body.organizer_avatar ?? null,

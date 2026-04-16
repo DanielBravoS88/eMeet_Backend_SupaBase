@@ -8,6 +8,7 @@ import profileRouter from './routes/profile.routes'
 import eventsRouter from './routes/events'
 import chatRouter from './routes/chat'
 import placesRouter from './routes/places.routes'
+import monetizationRouter from './routes/monetization.routes'
 
 const app = express()
 
@@ -30,5 +31,6 @@ app.use('/profile', profileRouter)
 app.use('/events', eventsRouter)
 app.use('/chat', chatRouter)
 app.use('/places', placesRouter)
+app.use('/monetization', monetizationRouter)
 
 export default app
