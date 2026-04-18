@@ -178,6 +178,7 @@ export interface Database {
           image_url: string | null
           organizer_name: string
           organizer_avatar: string | null
+          status: 'live' | 'draft' | 'flagged'
           created_at: string
         }
         Insert: {
@@ -192,6 +193,7 @@ export interface Database {
           image_url?: string | null
           organizer_name?: string
           organizer_avatar?: string | null
+          status?: 'live' | 'draft' | 'flagged'
           created_at?: string
         }
         Update: {
@@ -206,12 +208,115 @@ export interface Database {
           image_url?: string | null
           organizer_name?: string
           organizer_avatar?: string | null
+          status?: 'live' | 'draft' | 'flagged'
           created_at?: string
         }
         Relationships: [
           {
             foreignKeyName: 'locatario_events_creator_id_fkey'
             columns: ['creator_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      reports: {
+        Row: {
+          id: string
+          type: 'spam' | 'inappropriate' | 'fake' | 'other'
+          description: string
+          target_type: 'event' | 'user' | 'comment'
+          target_id: string
+          reporter_id: string
+          status: 'pending' | 'resolved' | 'dismissed'
+          resolved_by: string | null
+          resolved_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          type: 'spam' | 'inappropriate' | 'fake' | 'other'
+          description?: string
+          target_type: 'event' | 'user' | 'comment'
+          target_id: string
+          reporter_id?: string
+          status?: 'pending' | 'resolved' | 'dismissed'
+          resolved_by?: string | null
+          resolved_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          type?: 'spam' | 'inappropriate' | 'fake' | 'other'
+          description?: string
+          target_type?: 'event' | 'user' | 'comment'
+          target_id?: string
+          reporter_id?: string
+          status?: 'pending' | 'resolved' | 'dismissed'
+          resolved_by?: string | null
+          resolved_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'reports_reporter_id_fkey'
+            columns: ['reporter_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'reports_resolved_by_fkey'
+            columns: ['resolved_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          id: string
+          type: 'ticket' | 'suscripcion' | 'comision'
+          description: string
+          amount: number
+          status: 'completado' | 'pendiente' | 'reembolsado'
+          event_id: string | null
+          user_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          type: 'ticket' | 'suscripcion' | 'comision'
+          description?: string
+          amount: number
+          status?: 'completado' | 'pendiente' | 'reembolsado'
+          event_id?: string | null
+          user_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          type?: 'ticket' | 'suscripcion' | 'comision'
+          description?: string
+          amount?: number
+          status?: 'completado' | 'pendiente' | 'reembolsado'
+          event_id?: string | null
+          user_id?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'transactions_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'locatario_events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'transactions_user_id_fkey'
+            columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']

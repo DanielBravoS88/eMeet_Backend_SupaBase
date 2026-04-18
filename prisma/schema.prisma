@@ -19,6 +19,9 @@ model Profile {
   room_members     RoomMember[]
   chat_messages    ChatMessage[]
   locatario_events LocatarioEvent[]
+  reports_filed    Report[]        @relation("reporter")
+  reports_resolved Report[]        @relation("resolver")
+  transactions     Transaction[]
 
   @@map("profiles")
 }
@@ -35,12 +38,16 @@ model LocatarioEvent {
   image_url        String?
   organizer_name   String
   organizer_avatar String?
+  // "draft" | "live" | "flagged"
+  status           String   @default("draft")
   created_at       DateTime @db.Timestamptz(6)
 
-  profile Profile @relation(fields: [creator_id], references: [id], onDelete: Cascade)
+  profile      Profile       @relation(fields: [creator_id], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 
   @@index([creator_id, created_at(sort: Desc)])
   @@index([event_date(sort: Desc)])
+  @@index([status, created_at(sort: Desc)])
   @@map("locatario_events")
 }
 
@@ -103,4 +110,55 @@ model ChatMessage {
   @@index([room_id, created_at(sort: Desc)])
   @@index([user_id])
   @@map("chat_messages")
+}
+
+// ─── Moderación ───────────────────────────────────────────────────────────────
+
+model Report {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // "spam" | "inappropriate" | "fake" | "other"
+  type        String
+  description String    @default("")
+  // "event" | "user" | "comment"
+  target_type String
+  // UUID o texto dependiendo del target_type
+  target_id   String
+  reporter_id String    @db.Uuid
+  // "pending" | "resolved" | "dismissed"
+  status      String    @default("pending")
+  resolved_by String?   @db.Uuid
+  resolved_at DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  reporter Profile  @relation("reporter", fields: [reporter_id], references: [id], onDelete: Cascade)
+  resolver Profile? @relation("resolver", fields: [resolved_by], references: [id], onDelete: SetNull)
+
+  @@index([status, created_at(sort: Desc)])
+  @@index([reporter_id])
+  @@index([target_type, target_id])
+  @@map("reports")
+}
+
+// ─── Finanzas ─────────────────────────────────────────────────────────────────
+
+model Transaction {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // "ticket" | "suscripcion" | "comision"
+  type        String
+  description String   @default("")
+  amount      Decimal
+  // "completado" | "pendiente" | "reembolsado"
+  status      String   @default("pendiente")
+  event_id    String?  @db.Uuid
+  user_id     String?  @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  event   LocatarioEvent? @relation(fields: [event_id], references: [id], onDelete: SetNull)
+  profile Profile?        @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([created_at(sort: Desc)])
+  @@index([type, status])
+  @@index([event_id])
+  @@index([user_id])
+  @@map("transactions")
 }
