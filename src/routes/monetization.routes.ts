@@ -21,6 +21,10 @@ function normalizeBaseUrl() {
   return env.FRONTEND_ORIGIN.replace(/\/$/, '')
 }
 
+function normalizeBackendUrl() {
+  return env.BACKEND_PUBLIC_URL.replace(/\/$/, '')
+}
+
 async function ensureWallet(locatarioId: string) {
   const { data: existing, error: findError } = await serviceSupabase
     .from('token_wallets')
@@ -30,6 +34,12 @@ async function ensureWallet(locatarioId: string) {
 
   if (findError) throw findError
   if (existing) return existing
+
+  const { error: profileError } = await serviceSupabase
+    .from('profiles')
+    .upsert({ id: locatarioId, name: 'Locatario eMeet' }, { onConflict: 'id', ignoreDuplicates: true })
+
+  if (profileError) throw profileError
 
   const { data, error } = await serviceSupabase
     .from('token_wallets')
@@ -65,7 +75,7 @@ async function createMercadoPagoCheckout(order: {
   amount_clp: number
 }) {
   if (!env.MERCADO_PAGO_ACCESS_TOKEN) {
-    throw new Error('Mercado Pago no esta configurado.')
+    throw new Error('Falta MERCADO_PAGO_ACCESS_TOKEN en el backend para iniciar Mercado Pago.')
   }
 
   const baseUrl = normalizeBaseUrl()
@@ -91,7 +101,7 @@ async function createMercadoPagoCheckout(order: {
         failure: `${baseUrl}/locatario?payment=failure&order=${order.id}`,
         pending: `${baseUrl}/locatario?payment=pending&order=${order.id}`,
       },
-      notification_url: `${env.BACKEND_PUBLIC_URL.replace(/\/$/, '')}/monetization/mercadopago/webhook`,
+      notification_url: `${normalizeBackendUrl()}/monetization/mercadopago/webhook`,
     }),
   })
 
@@ -108,17 +118,34 @@ async function createMercadoPagoCheckout(order: {
   return {
     providerOrderId: payload.id ?? null,
     checkoutUrl: payload.init_point ?? payload.sandbox_init_point ?? null,
+    checkoutToken: null,
     raw: payload,
   }
+}
+
+function getTransbankCredentials() {
+  if (env.TRANSBANK_COMMERCE_CODE && env.TRANSBANK_API_KEY) {
+    return {
+      commerceCode: env.TRANSBANK_COMMERCE_CODE,
+      apiKey: env.TRANSBANK_API_KEY,
+    }
+  }
+
+  if (env.TRANSBANK_ENV === 'integration') {
+    return {
+      commerceCode: '597055555532',
+      apiKey: '597055555532',
+    }
+  }
+
+  throw new Error('Faltan TRANSBANK_COMMERCE_CODE y TRANSBANK_API_KEY en el backend.')
 }
 
 async function createTransbankCheckout(order: {
   id: string
   amount_clp: number
 }) {
-  if (!env.TRANSBANK_COMMERCE_CODE || !env.TRANSBANK_API_KEY) {
-    throw new Error('Transbank no esta configurado.')
-  }
+  const credentials = getTransbankCredentials()
 
   const host = env.TRANSBANK_ENV === 'production'
     ? 'https://webpay3g.transbank.cl'
@@ -128,14 +155,14 @@ async function createTransbankCheckout(order: {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Tbk-Api-Key-Id': env.TRANSBANK_COMMERCE_CODE,
-      'Tbk-Api-Key-Secret': env.TRANSBANK_API_KEY,
+      'Tbk-Api-Key-Id': credentials.commerceCode,
+      'Tbk-Api-Key-Secret': credentials.apiKey,
     },
     body: JSON.stringify({
       buy_order: order.id,
       session_id: order.id,
       amount: order.amount_clp,
-      return_url: `${normalizeBaseUrl()}/locatario?payment=transbank&order=${order.id}`,
+      return_url: `${normalizeBackendUrl()}/monetization/transbank/return?order=${order.id}`,
     }),
   })
 
@@ -146,15 +173,14 @@ async function createTransbankCheckout(order: {
   const payload = await response.json() as { token?: string; url?: string }
   return {
     providerOrderId: payload.token ?? null,
-    checkoutUrl: payload.url && payload.token ? `${payload.url}?token_ws=${payload.token}` : null,
+    checkoutUrl: payload.url ?? null,
+    checkoutToken: payload.token ?? null,
     raw: payload,
   }
 }
 
 async function commitTransbankTransaction(tokenWs: string) {
-  if (!env.TRANSBANK_COMMERCE_CODE || !env.TRANSBANK_API_KEY) {
-    throw new Error('Transbank no esta configurado.')
-  }
+  const credentials = getTransbankCredentials()
 
   const host = env.TRANSBANK_ENV === 'production'
     ? 'https://webpay3g.transbank.cl'
@@ -164,8 +190,8 @@ async function commitTransbankTransaction(tokenWs: string) {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      'Tbk-Api-Key-Id': env.TRANSBANK_COMMERCE_CODE,
-      'Tbk-Api-Key-Secret': env.TRANSBANK_API_KEY,
+      'Tbk-Api-Key-Id': credentials.commerceCode,
+      'Tbk-Api-Key-Secret': credentials.apiKey,
     },
   })
 
@@ -179,6 +205,38 @@ async function commitTransbankTransaction(tokenWs: string) {
     authorization_code?: string
     response_code?: number
   }>
+}
+
+async function approveTransbankOrder(orderId: string, tokenWs: string, locatarioId?: string) {
+  let query = serviceSupabase
+    .from('payment_orders')
+    .select('*')
+    .eq('id', orderId)
+    .eq('provider', 'transbank_webpay')
+
+  if (locatarioId) {
+    query = query.eq('locatario_id', locatarioId)
+  }
+
+  const { data: order, error: orderError } = await query.single()
+
+  if (orderError || !order) throw new Error('Orden de pago no valida.')
+
+  const payload = await commitTransbankTransaction(tokenWs)
+  if (payload.buy_order !== order.id || payload.status !== 'AUTHORIZED' || payload.response_code !== 0) {
+    await serviceSupabase.from('payment_orders').update({
+      status: 'failed',
+      raw_provider_response: payload,
+    }).eq('id', order.id)
+    throw new Error('Transbank no autorizo el pago.')
+  }
+
+  await serviceSupabase.from('payment_orders').update({
+    provider_payment_id: payload.authorization_code ?? null,
+    raw_provider_response: payload,
+  }).eq('id', order.id)
+
+  return creditTokens(order.id)
 }
 
 async function getMercadoPagoPayment(paymentId: string) {
@@ -249,11 +307,31 @@ router.post('/mercadopago/webhook', async (req, res) => {
   }
 })
 
-router.use(withAuth)
+router.post('/transbank/return', async (req, res) => {
+  const orderId = typeof req.query.order === 'string' ? req.query.order : null
+  const tokenWs = typeof req.body?.token_ws === 'string'
+    ? req.body.token_ws
+    : typeof req.query.token_ws === 'string'
+      ? req.query.token_ws
+      : null
+
+  if (!orderId || !tokenWs) {
+    return res.redirect(`${normalizeBaseUrl()}/locatario?payment=failed`)
+  }
+
+  try {
+    await approveTransbankOrder(orderId, tokenWs)
+    return res.redirect(`${normalizeBaseUrl()}/locatario?payment=transbank_success&order=${orderId}`)
+  } catch {
+    return res.redirect(`${normalizeBaseUrl()}/locatario?payment=transbank_failed&order=${orderId}`)
+  }
+})
 
 router.get('/packs', (_req, res) => {
   return res.json(Object.values(TOKEN_PACKS))
 })
+
+router.use(withAuth)
 
 router.get('/wallet', async (req, res) => {
   try {
@@ -316,7 +394,10 @@ router.post('/purchases', async (req, res) => {
 
     if (updateError) return serverError(res, 'No se pudo guardar la orden de pago.')
 
-    return res.status(201).json(updatedOrder)
+    return res.status(201).json({
+      ...updatedOrder,
+      checkout_token: checkout.checkoutToken,
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'No se pudo iniciar el pago.'
     return badRequest(res, message)
@@ -399,31 +480,7 @@ router.post('/transbank/commit', async (req, res) => {
   const { orderId, tokenWs } = parsed.data
 
   try {
-    const { data: order, error: orderError } = await serviceSupabase
-      .from('payment_orders')
-      .select('*')
-      .eq('id', orderId)
-      .eq('locatario_id', req.authUser!.id)
-      .eq('provider', 'transbank_webpay')
-      .single()
-
-    if (orderError || !order) return badRequest(res, 'Orden de pago no valida.')
-
-    const payload = await commitTransbankTransaction(tokenWs)
-    if (payload.buy_order !== order.id || payload.status !== 'AUTHORIZED' || payload.response_code !== 0) {
-      await serviceSupabase.from('payment_orders').update({
-        status: 'failed',
-        raw_provider_response: payload,
-      }).eq('id', order.id)
-      return badRequest(res, 'Transbank no autorizo el pago.')
-    }
-
-    await serviceSupabase.from('payment_orders').update({
-      provider_payment_id: payload.authorization_code ?? null,
-      raw_provider_response: payload,
-    }).eq('id', order.id)
-
-    const paidOrder = await creditTokens(order.id)
+    const paidOrder = await approveTransbankOrder(orderId, tokenWs, req.authUser!.id)
     return res.json(paidOrder)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'No se pudo confirmar Transbank.'
