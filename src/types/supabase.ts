@@ -176,8 +176,11 @@ export interface Database {
           address: string
           price: number | null
           image_url: string | null
+          video_url: string | null
           organizer_name: string
           organizer_avatar: string | null
+          lat: number | null
+          lng: number | null
           status: 'live' | 'draft' | 'flagged'
           created_at: string
         }
@@ -191,8 +194,11 @@ export interface Database {
           address?: string
           price?: number | null
           image_url?: string | null
+          video_url?: string | null
           organizer_name?: string
           organizer_avatar?: string | null
+          lat?: number | null
+          lng?: number | null
           status?: 'live' | 'draft' | 'flagged'
           created_at?: string
         }
@@ -206,8 +212,11 @@ export interface Database {
           address?: string
           price?: number | null
           image_url?: string | null
+          video_url?: string | null
           organizer_name?: string
           organizer_avatar?: string | null
+          lat?: number | null
+          lng?: number | null
           status?: 'live' | 'draft' | 'flagged'
           created_at?: string
         }

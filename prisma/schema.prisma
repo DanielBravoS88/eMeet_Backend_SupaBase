@@ -36,7 +36,10 @@ model LocatarioEvent {
   address          String
   price            Decimal?
   image_url        String?
+  video_url        String?
   organizer_name   String
+  lat              Decimal?
+  lng              Decimal?
   organizer_avatar String?
   // "draft" | "live" | "flagged"
   status           String   @default("draft")
