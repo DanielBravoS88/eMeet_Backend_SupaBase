@@ -1,8 +1,16 @@
 import { Router } from 'express'
-import { withAuth } from '../middleware/auth'
+import { requireRole, withAuth } from '../middleware/auth'
 import { badRequest, serverError } from '../utils/http'
 
 const router = Router()
+
+const EVENT_CATEGORIES = ['gastronomia', 'musica', 'cultura', 'networking', 'deporte', 'fiesta', 'teatro', 'arte'] as const
+
+type EventCategory = (typeof EVENT_CATEGORIES)[number]
+
+function isOneOf<T extends readonly string[]>(value: unknown, options: T): value is T[number] {
+  return typeof value === 'string' && options.includes(value)
+}
 
 router.use(withAuth)
 
@@ -166,7 +174,7 @@ router.get('/saved', async (req, res) => {
   return res.json(data)
 })
 
-router.get('/locatario', async (req, res) => {
+router.get('/locatario', requireRole('locatario'), async (req, res) => {
   const { data, error } = await req.supabase!
     .from('locatario_events')
     .select('*')
@@ -180,48 +188,29 @@ router.get('/locatario', async (req, res) => {
   return res.json(data ?? [])
 })
 
-const VALID_VIDEO_EXTENSIONS = /\.(mp4|webm)(\?.*)?$/i
-
-function isValidVideoUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url)
-    return parsed.protocol === 'https:' && VALID_VIDEO_EXTENSIONS.test(parsed.pathname)
-  } catch {
-    return false
-  }
-}
-
-router.post('/locatario', async (req, res) => {
+router.post('/locatario', requireRole('locatario'), async (req, res) => {
   const body = req.body as {
     title?: string
     description?: string
-    category?:
-      | 'gastronomia'
-      | 'musica'
-      | 'cultura'
-      | 'networking'
-      | 'deporte'
-      | 'fiesta'
-      | 'teatro'
-      | 'arte'
+    category?: EventCategory
     event_date?: string
     address?: string
-    price?: number | null
     image_url?: string | null
-    video_url?: string | null
     organizer_name?: string
     organizer_avatar?: string | null
-    lat?: number | null
-    lng?: number | null
   }
 
   if (!body.title?.trim() || !body.description?.trim() || !body.event_date || !body.category) {
     return badRequest(res, 'Titulo, descripcion, categoria y fecha son obligatorios.')
   }
 
-  const videoUrl = body.video_url?.trim() || null
-  if (videoUrl !== null && !isValidVideoUrl(videoUrl)) {
-    return badRequest(res, 'video_url inválida. Debe ser una URL HTTPS de archivo .mp4 o .webm.')
+  if (!isOneOf(body.category, EVENT_CATEGORIES)) {
+    return badRequest(res, 'La categoria del evento no es valida.')
+  }
+
+  const eventDate = new Date(body.event_date)
+  if (Number.isNaN(eventDate.getTime())) {
+    return badRequest(res, 'La fecha del evento no es valida.')
   }
 
   const { data, error } = await req.supabase!
@@ -231,29 +220,23 @@ router.post('/locatario', async (req, res) => {
       title: body.title.trim(),
       description: body.description.trim(),
       category: body.category,
-      event_date: new Date(body.event_date).toISOString(),
+      event_date: eventDate.toISOString(),
       address: body.address?.trim() ?? '',
-      price: body.price ?? null,
       image_url: body.image_url?.trim() || null,
-      video_url: videoUrl,
-      created_at: new Date().toISOString(),
       organizer_name: body.organizer_name ?? '',
       organizer_avatar: body.organizer_avatar ?? null,
-      lat: body.lat ?? null,
-      lng: body.lng ?? null,
     })
     .select('*')
     .single()
 
   if (error) {
-    console.error('[POST /locatario] Supabase error:', error)
-    return serverError(res, `No se pudo crear el evento. ${error.message}`)
+    return serverError(res, 'No se pudo crear el evento.')
   }
 
   return res.status(201).json(data)
 })
 
-router.delete('/locatario/:id', async (req, res) => {
+router.delete('/locatario/:id', requireRole('locatario'), async (req, res) => {
   const { id } = req.params
 
   const { error } = await req.supabase!

@@ -7,11 +7,15 @@ create extension if not exists pgcrypto;
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   name text not null,
+  role text not null default 'user',
   bio text not null default '',
   avatar_url text,
   location text not null default '',
+  business_name text,
+  business_location text,
   interests text[] not null default '{}',
   created_at timestamptz not null default now(),
+  constraint profiles_role_valid check (role in ('user', 'locatario', 'admin')),
   constraint profiles_interests_valid check (
     interests <@ array[
       'gastronomia',
@@ -241,11 +245,19 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, name, avatar_url)
+  insert into public.profiles (id, name, avatar_url, role, bio, business_name, business_location)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    new.raw_user_meta_data->>'avatar_url'
+    new.raw_user_meta_data->>'avatar_url',
+    case
+      when new.raw_user_meta_data->>'role' in ('user', 'locatario', 'admin')
+        then new.raw_user_meta_data->>'role'
+      else 'user'
+    end,
+    coalesce(new.raw_user_meta_data->>'bio', ''),
+    nullif(new.raw_user_meta_data->>'business_name', ''),
+    nullif(new.raw_user_meta_data->>'business_location', '')
   )
   on conflict (id) do nothing;
 

@@ -8,6 +8,10 @@ export function unauthorized(res: Response, message = 'No autorizado') {
   return res.status(401).json({ error: message })
 }
 
+export function forbidden(res: Response, message = 'No tienes permisos para realizar esta accion') {
+  return res.status(403).json({ error: message })
+}
+
 export function serverError(res: Response, message = 'Error interno del servidor') {
   return res.status(500).json({ error: message })
 }

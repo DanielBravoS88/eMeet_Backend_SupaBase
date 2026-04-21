@@ -1,8 +1,9 @@
 import type { NextFunction, Request, Response } from 'express'
 import { withAuth } from './auth'
 
-const { mockCreateAnonClient, mockUnauthorized } = vi.hoisted(() => ({
+const { mockCreateAnonClient, mockServerError, mockUnauthorized } = vi.hoisted(() => ({
   mockCreateAnonClient: vi.fn(),
+  mockServerError: vi.fn(),
   mockUnauthorized: vi.fn(),
 }))
 
@@ -11,6 +12,8 @@ vi.mock('../lib/supabase', () => ({
 }))
 
 vi.mock('../utils/http', () => ({
+  forbidden: vi.fn(),
+  serverError: mockServerError,
   unauthorized: mockUnauthorized,
 }))
 
@@ -22,9 +25,18 @@ function createRes() {
   return {} as Response
 }
 
+function createProfileQuery(profile: unknown, error: unknown = null) {
+  return {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({ data: profile, error }),
+  }
+}
+
 describe('withAuth middleware', () => {
   beforeEach(() => {
     mockCreateAnonClient.mockReset()
+    mockServerError.mockReset()
     mockUnauthorized.mockReset()
   })
 
@@ -35,12 +47,12 @@ describe('withAuth middleware', () => {
 
     await withAuth(req, res, next)
 
-    expect(mockUnauthorized).toHaveBeenCalledWith(res, 'Falta token de autorización.')
+    expect(mockUnauthorized).toHaveBeenCalledWith(res, 'Falta token de autorizacion.')
     expect(mockCreateAnonClient).not.toHaveBeenCalled()
     expect(next).not.toHaveBeenCalled()
   })
 
-  it('rechaza cuando supabase devuelve sesión inválida', async () => {
+  it('rechaza cuando supabase devuelve sesion invalida', async () => {
     const req = createReq({ authorization: 'Bearer token-invalido' })
     const res = createRes()
     const next = vi.fn() as unknown as NextFunction
@@ -54,14 +66,38 @@ describe('withAuth middleware', () => {
     await withAuth(req, res, next)
 
     expect(mockCreateAnonClient).toHaveBeenCalledWith('token-invalido')
-    expect(mockUnauthorized).toHaveBeenCalledWith(res, 'Sesión inválida o expirada.')
+    expect(mockUnauthorized).toHaveBeenCalledWith(res, 'Sesion invalida o expirada.')
     expect(next).not.toHaveBeenCalled()
   })
 
-  it('continúa y adjunta usuario cuando token es válido', async () => {
+  it('rechaza cuando no puede validar perfil', async () => {
     const req = createReq({ authorization: 'Bearer token-valido' })
     const res = createRes()
     const next = vi.fn() as unknown as NextFunction
+    const profileQuery = createProfileQuery(null, { message: 'missing profile' })
+
+    mockCreateAnonClient.mockReturnValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: 'user-1', email: 'test@mail.com' } },
+          error: null,
+        }),
+      },
+      from: vi.fn().mockReturnValue(profileQuery),
+    })
+
+    await withAuth(req, res, next)
+
+    expect(mockServerError).toHaveBeenCalledWith(res, 'No se pudo validar el perfil del usuario.')
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('continua y adjunta usuario y perfil cuando token es valido', async () => {
+    const req = createReq({ authorization: 'Bearer token-valido' })
+    const res = createRes()
+    const next = vi.fn() as unknown as NextFunction
+    const profile = { id: 'user-1', name: 'Test', role: 'user' }
+    const profileQuery = createProfileQuery(profile)
     const supabaseMock = {
       auth: {
         getUser: vi.fn().mockResolvedValue({
@@ -69,6 +105,7 @@ describe('withAuth middleware', () => {
           error: null,
         }),
       },
+      from: vi.fn().mockReturnValue(profileQuery),
     }
 
     mockCreateAnonClient.mockReturnValue(supabaseMock)
@@ -76,8 +113,10 @@ describe('withAuth middleware', () => {
     await withAuth(req, res, next)
 
     expect(mockCreateAnonClient).toHaveBeenCalledWith('token-valido')
+    expect(supabaseMock.from).toHaveBeenCalledWith('profiles')
     expect(req.supabase).toBe(supabaseMock)
     expect(req.authUser).toEqual({ id: 'user-1', email: 'test@mail.com' })
+    expect(req.authProfile).toBe(profile)
     expect(next).toHaveBeenCalledTimes(1)
     expect(mockUnauthorized).not.toHaveBeenCalled()
   })

@@ -15,26 +15,35 @@ export interface Database {
         Row: {
           id: string
           name: string
+          role: 'user' | 'locatario' | 'admin'
           bio: string
           avatar_url: string | null
           location: string
+          business_name: string | null
+          business_location: string | null
           interests: EventCategory[]
           created_at: string
         }
         Insert: {
           id: string
           name: string
+          role?: 'user' | 'locatario' | 'admin'
           bio?: string
           avatar_url?: string | null
           location?: string
+          business_name?: string | null
+          business_location?: string | null
           interests?: EventCategory[]
           created_at?: string
         }
         Update: {
           name?: string
+          role?: 'user' | 'locatario' | 'admin'
           bio?: string
           avatar_url?: string | null
           location?: string
+          business_name?: string | null
+          business_location?: string | null
           interests?: EventCategory[]
         }
         Relationships: []
