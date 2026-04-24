@@ -8,6 +8,7 @@ import {
   parseActivatePromotionInput,
   parseConfirmMercadoPagoInput,
   parseConfirmTransbankInput,
+  parseCreateCouponInput,
   parseCreatePurchaseInput,
   parseValidateQrInput,
 } from '../schemas/monetization.schema'
@@ -66,6 +67,121 @@ async function creditTokens(orderId: string) {
 
   if (orderError) throw orderError
   return order
+}
+
+async function createCouponCampaign(locatarioId: string, eventId: string, durationDays: number) {
+  const { data: event, error: eventError } = await serviceSupabase
+    .from('locatario_events')
+    .select('id, creator_id, title')
+    .eq('id', eventId)
+    .eq('creator_id', locatarioId)
+    .single()
+
+  if (eventError || !event) {
+    throw new Error('No puedes crear un cupon para este evento.')
+  }
+
+  await ensureWallet(locatarioId)
+
+  const tokenCost = PROMOTION_COSTS.coupon * durationDays
+  const startsAt = new Date()
+  const endsAt = new Date(startsAt.getTime() + durationDays * 24 * 60 * 60 * 1000)
+
+  const { data: campaignId, error: consumeError } = await serviceSupabase.rpc('consume_tokens_for_campaign', {
+    p_locatario_id: locatarioId,
+    p_event_id: event.id,
+    p_type: 'coupon',
+    p_token_cost: tokenCost,
+    p_starts_at: startsAt.toISOString(),
+    p_ends_at: endsAt.toISOString(),
+  })
+
+  if (consumeError) {
+    throw new Error(
+      consumeError.message === 'insufficient_balance'
+        ? 'Saldo insuficiente para activar este cupon.'
+        : 'No se pudo activar el cupon.',
+    )
+  }
+
+  const { data: campaign, error: campaignError } = await serviceSupabase
+    .from('promotion_campaigns')
+    .select('*')
+    .eq('id', campaignId)
+    .single()
+
+  if (campaignError || !campaign) {
+    throw new Error('No se pudo cargar la campana creada.')
+  }
+
+  const qrToken = randomUUID().replace(/-/g, '')
+  const { data: coupon, error: couponError } = await serviceSupabase
+    .from('coupons')
+    .insert({
+      campaign_id: campaign.id,
+      title: `Cupon para ${event.title}`,
+      description: 'Cupon promocional asociado al evento.',
+      qr_token: qrToken,
+      status: 'active',
+      expires_at: endsAt.toISOString(),
+    })
+    .select('*')
+    .single()
+
+  if (couponError || !coupon) {
+    throw new Error('No se pudo guardar el cupon.')
+  }
+
+  const wallet = await ensureWallet(locatarioId)
+  return { campaign, coupon, wallet, event }
+}
+
+async function listCouponsByLocatario(locatarioId: string) {
+  const { data: campaigns, error: campaignError } = await serviceSupabase
+    .from('promotion_campaigns')
+    .select('*')
+    .eq('locatario_id', locatarioId)
+    .eq('type', 'coupon')
+    .order('created_at', { ascending: false })
+
+  if (campaignError) throw campaignError
+
+  const campaignRows = campaigns ?? []
+  if (campaignRows.length === 0) return []
+
+  const campaignIds = campaignRows.map((campaign) => campaign.id)
+  const eventIds = Array.from(new Set(campaignRows.map((campaign) => campaign.event_id).filter(Boolean)))
+
+  const { data: coupons, error: couponError } = await serviceSupabase
+    .from('coupons')
+    .select('*')
+    .in('campaign_id', campaignIds)
+    .order('created_at', { ascending: false })
+
+  if (couponError) throw couponError
+
+  const events = eventIds.length > 0
+    ? await serviceSupabase
+      .from('locatario_events')
+      .select('id, title, event_date')
+      .in('id', eventIds)
+    : { data: [], error: null }
+
+  if (events.error) throw events.error
+
+  const campaignById = new Map(campaignRows.map((campaign) => [campaign.id, campaign]))
+  const eventById = new Map((events.data ?? []).map((event) => [event.id, event]))
+
+  return (coupons ?? []).map((coupon) => {
+    const campaign = campaignById.get(coupon.campaign_id) ?? null
+    const event = campaign ? eventById.get(campaign.event_id) ?? null : null
+
+    return {
+      ...coupon,
+      campaign,
+      event,
+    }
+  })
 }
 
 async function createMercadoPagoCheckout(order: {
@@ -351,6 +467,29 @@ router.get('/wallet', async (req, res) => {
   }
 })
 
+router.get('/coupons', async (req, res) => {
+  try {
+    const coupons = await listCouponsByLocatario(req.authUser!.id)
+    return res.json({ coupons })
+  } catch {
+    return serverError(res, 'No se pudieron cargar los cupones.')
+  }
+})
+
+router.post('/coupons', async (req, res) => {
+  const parsed = parseCreateCouponInput(req.body)
+
+  if (!parsed.ok) return badRequest(res, parsed.error)
+
+  try {
+    const result = await createCouponCampaign(req.authUser!.id, parsed.data.eventId, parsed.data.durationDays)
+    return res.status(201).json(result)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'No se pudo crear el cupon.'
+    return badRequest(res, message)
+  }
+})
+
 router.post('/purchases', async (req, res) => {
   const parsed = parseCreatePurchaseInput(req.body)
 
@@ -577,7 +716,18 @@ router.post('/qr/validate', async (req, res) => {
       return serverError(res, 'No se pudo cargar la campana asociada.')
     }
 
-    return res.json({ coupon: redeemed, campaign })
+    const { data: event, error: eventError } = await serviceSupabase
+      .from('locatario_events')
+      .select('id, title, event_date')
+      .eq('id', campaign.event_id)
+      .eq('creator_id', req.authUser!.id)
+      .maybeSingle()
+
+    if (eventError) {
+      return serverError(res, 'No se pudo cargar el evento asociado.')
+    }
+
+    return res.json({ coupon: redeemed, campaign, event: event ?? null })
   } catch {
     return serverError(res, 'No se pudo validar el QR.')
   }
