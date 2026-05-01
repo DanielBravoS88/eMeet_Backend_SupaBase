@@ -1,14 +1,13 @@
-import { Router, type Request } from 'express'
+import { Router, type Request, type Response } from 'express'
 import { randomUUID } from 'node:crypto'
 import { PROMOTION_COSTS, TOKEN_PACKS } from '../constants/monetization'
 import { env } from '../config/env'
 import { createServiceRoleClient } from '../lib/supabase'
-import { withAuth } from '../middleware/auth'
+import { requireRole, withAuth } from '../middleware/auth'
 import {
   parseActivatePromotionInput,
   parseConfirmMercadoPagoInput,
   parseConfirmTransbankInput,
-  parseCreateCouponInput,
   parseCreatePurchaseInput,
   parseValidateQrInput,
 } from '../schemas/monetization.schema'
@@ -24,6 +23,33 @@ function normalizeBaseUrl() {
 
 function normalizeBackendUrl() {
   return env.BACKEND_PUBLIC_URL.replace(/\/$/, '')
+}
+
+function isPublicCallbackUrl(url: string) {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'https:' && !['localhost', '127.0.0.1'].includes(parsed.hostname)
+  } catch {
+    return false
+  }
+}
+
+function createTransbankBuyOrder(orderId: string) {
+  return `EM${orderId.replace(/-/g, '').slice(0, 24)}`
+}
+
+function isMercadoPagoTestMode() {
+  return env.MERCADO_PAGO_ACCESS_TOKEN.startsWith('TEST-')
+}
+
+async function getMercadoPagoErrorDetail(response: globalThis.Response) {
+  const contentType = response.headers.get('content-type') ?? ''
+
+  if (contentType.includes('application/json')) {
+    return response.json().catch(() => null) as Promise<unknown>
+  }
+
+  return response.text().catch(() => null) as Promise<unknown>
 }
 
 async function ensureWallet(locatarioId: string) {
@@ -69,121 +95,6 @@ async function creditTokens(orderId: string) {
   return order
 }
 
-async function createCouponCampaign(locatarioId: string, eventId: string, durationDays: number) {
-  const { data: event, error: eventError } = await serviceSupabase
-    .from('locatario_events')
-    .select('id, creator_id, title')
-    .eq('id', eventId)
-    .eq('creator_id', locatarioId)
-    .single()
-
-  if (eventError || !event) {
-    throw new Error('No puedes crear un cupon para este evento.')
-  }
-
-  await ensureWallet(locatarioId)
-
-  const tokenCost = PROMOTION_COSTS.coupon * durationDays
-  const startsAt = new Date()
-  const endsAt = new Date(startsAt.getTime() + durationDays * 24 * 60 * 60 * 1000)
-
-  const { data: campaignId, error: consumeError } = await serviceSupabase.rpc('consume_tokens_for_campaign', {
-    p_locatario_id: locatarioId,
-    p_event_id: event.id,
-    p_type: 'coupon',
-    p_token_cost: tokenCost,
-    p_starts_at: startsAt.toISOString(),
-    p_ends_at: endsAt.toISOString(),
-  })
-
-  if (consumeError) {
-    throw new Error(
-      consumeError.message === 'insufficient_balance'
-        ? 'Saldo insuficiente para activar este cupon.'
-        : 'No se pudo activar el cupon.',
-    )
-  }
-
-  const { data: campaign, error: campaignError } = await serviceSupabase
-    .from('promotion_campaigns')
-    .select('*')
-    .eq('id', campaignId)
-    .single()
-
-  if (campaignError || !campaign) {
-    throw new Error('No se pudo cargar la campana creada.')
-  }
-
-  const qrToken = randomUUID().replace(/-/g, '')
-  const { data: coupon, error: couponError } = await serviceSupabase
-    .from('coupons')
-    .insert({
-      campaign_id: campaign.id,
-      title: `Cupon para ${event.title}`,
-      description: 'Cupon promocional asociado al evento.',
-      qr_token: qrToken,
-      status: 'active',
-      expires_at: endsAt.toISOString(),
-    })
-    .select('*')
-    .single()
-
-  if (couponError || !coupon) {
-    throw new Error('No se pudo guardar el cupon.')
-  }
-
-  const wallet = await ensureWallet(locatarioId)
-  return { campaign, coupon, wallet, event }
-}
-
-async function listCouponsByLocatario(locatarioId: string) {
-  const { data: campaigns, error: campaignError } = await serviceSupabase
-    .from('promotion_campaigns')
-    .select('*')
-    .eq('locatario_id', locatarioId)
-    .eq('type', 'coupon')
-    .order('created_at', { ascending: false })
-
-  if (campaignError) throw campaignError
-
-  const campaignRows = campaigns ?? []
-  if (campaignRows.length === 0) return []
-
-  const campaignIds = campaignRows.map((campaign) => campaign.id)
-  const eventIds = Array.from(new Set(campaignRows.map((campaign) => campaign.event_id).filter(Boolean)))
-
-  const { data: coupons, error: couponError } = await serviceSupabase
-    .from('coupons')
-    .select('*')
-    .in('campaign_id', campaignIds)
-    .order('created_at', { ascending: false })
-
-  if (couponError) throw couponError
-
-  const events = eventIds.length > 0
-    ? await serviceSupabase
-      .from('locatario_events')
-      .select('id, title, event_date')
-      .in('id', eventIds)
-    : { data: [], error: null }
-
-  if (events.error) throw events.error
-
-  const campaignById = new Map(campaignRows.map((campaign) => [campaign.id, campaign]))
-  const eventById = new Map((events.data ?? []).map((event) => [event.id, event]))
-
-  return (coupons ?? []).map((coupon) => {
-    const campaign = campaignById.get(coupon.campaign_id) ?? null
-    const event = campaign ? eventById.get(campaign.event_id) ?? null : null
-
-    return {
-      ...coupon,
-      campaign,
-      event,
-    }
-  })
-}
-
 async function createMercadoPagoCheckout(order: {
   id: string
   pack_code: string
@@ -195,33 +106,50 @@ async function createMercadoPagoCheckout(order: {
   }
 
   const baseUrl = normalizeBaseUrl()
+  const backendUrl = normalizeBackendUrl()
+  const shouldUseBackUrls = isPublicCallbackUrl(baseUrl)
+  const shouldUseNotificationUrl = isPublicCallbackUrl(backendUrl)
+  const preferencePayload = {
+    external_reference: order.id,
+    items: [
+      {
+        id: order.pack_code,
+        title: `eMeet - ${order.token_amount} tokens promocionales`,
+        quantity: 1,
+        currency_id: 'CLP',
+        unit_price: order.amount_clp,
+      },
+    ],
+    ...(shouldUseBackUrls
+      ? {
+          back_urls: {
+            success: `${baseUrl}/locatario?payment=success&order=${order.id}`,
+            failure: `${baseUrl}/locatario?payment=failure&order=${order.id}`,
+            pending: `${baseUrl}/locatario?payment=pending&order=${order.id}`,
+          },
+        }
+      : {}),
+    ...(shouldUseNotificationUrl
+      ? { notification_url: `${backendUrl}/monetization/mercadopago/webhook` }
+      : {}),
+  }
+
   const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${env.MERCADO_PAGO_ACCESS_TOKEN}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      external_reference: order.id,
-      items: [
-        {
-          id: order.pack_code,
-          title: `eMeet - ${order.token_amount} tokens promocionales`,
-          quantity: 1,
-          currency_id: 'CLP',
-          unit_price: order.amount_clp,
-        },
-      ],
-      back_urls: {
-        success: `${baseUrl}/locatario?payment=success&order=${order.id}`,
-        failure: `${baseUrl}/locatario?payment=failure&order=${order.id}`,
-        pending: `${baseUrl}/locatario?payment=pending&order=${order.id}`,
-      },
-      notification_url: `${normalizeBackendUrl()}/monetization/mercadopago/webhook`,
-    }),
+    body: JSON.stringify(preferencePayload),
   })
 
   if (!response.ok) {
+    const errorDetail = await getMercadoPagoErrorDetail(response)
+    console.error('Mercado Pago preference creation failed', {
+      status: response.status,
+      statusText: response.statusText,
+      error: errorDetail,
+    })
     throw new Error('No se pudo crear la preferencia de Mercado Pago.')
   }
 
@@ -230,10 +158,13 @@ async function createMercadoPagoCheckout(order: {
     init_point?: string
     sandbox_init_point?: string
   }
+  const checkoutUrl = isMercadoPagoTestMode()
+    ? payload.sandbox_init_point ?? payload.init_point ?? null
+    : payload.init_point ?? payload.sandbox_init_point ?? null
 
   return {
     providerOrderId: payload.id ?? null,
-    checkoutUrl: payload.init_point ?? payload.sandbox_init_point ?? null,
+    checkoutUrl,
     checkoutToken: null,
     raw: payload,
   }
@@ -247,13 +178,6 @@ function getTransbankCredentials() {
     }
   }
 
-  if (env.TRANSBANK_ENV === 'integration') {
-    return {
-      commerceCode: '597055555532',
-      apiKey: '597055555532',
-    }
-  }
-
   throw new Error('Faltan TRANSBANK_COMMERCE_CODE y TRANSBANK_API_KEY en el backend.')
 }
 
@@ -262,6 +186,7 @@ async function createTransbankCheckout(order: {
   amount_clp: number
 }) {
   const credentials = getTransbankCredentials()
+  const buyOrder = createTransbankBuyOrder(order.id)
 
   const host = env.TRANSBANK_ENV === 'production'
     ? 'https://webpay3g.transbank.cl'
@@ -275,7 +200,7 @@ async function createTransbankCheckout(order: {
       'Tbk-Api-Key-Secret': credentials.apiKey,
     },
     body: JSON.stringify({
-      buy_order: order.id,
+      buy_order: buyOrder,
       session_id: order.id,
       amount: order.amount_clp,
       return_url: `${normalizeBackendUrl()}/monetization/transbank/return?order=${order.id}`,
@@ -288,11 +213,18 @@ async function createTransbankCheckout(order: {
 
   const payload = await response.json() as { token?: string; url?: string }
   return {
-    providerOrderId: payload.token ?? null,
+    providerOrderId: buyOrder,
     checkoutUrl: payload.url ?? null,
     checkoutToken: payload.token ?? null,
-    raw: payload,
+    raw: { ...payload, buy_order: buyOrder },
   }
+}
+
+type TransbankCommitPayload = {
+  buy_order?: string
+  status?: string
+  authorization_code?: string
+  response_code?: number
 }
 
 async function commitTransbankTransaction(tokenWs: string) {
@@ -315,15 +247,10 @@ async function commitTransbankTransaction(tokenWs: string) {
     throw new Error('No se pudo confirmar la transaccion de Transbank.')
   }
 
-  return response.json() as Promise<{
-    buy_order?: string
-    status?: string
-    authorization_code?: string
-    response_code?: number
-  }>
+  return response.json() as Promise<TransbankCommitPayload>
 }
 
-async function approveTransbankOrder(orderId: string, tokenWs: string, locatarioId?: string) {
+async function findTransbankOrderById(orderId: string, locatarioId?: string) {
   let query = serviceSupabase
     .from('payment_orders')
     .select('*')
@@ -337,9 +264,31 @@ async function approveTransbankOrder(orderId: string, tokenWs: string, locatario
   const { data: order, error: orderError } = await query.single()
 
   if (orderError || !order) throw new Error('Orden de pago no valida.')
+  return order
+}
 
-  const payload = await commitTransbankTransaction(tokenWs)
-  if (payload.buy_order !== order.id || payload.status !== 'AUTHORIZED' || payload.response_code !== 0) {
+async function findTransbankOrderByBuyOrder(buyOrder: string) {
+  const { data: order, error: orderError } = await serviceSupabase
+    .from('payment_orders')
+    .select('*')
+    .eq('provider', 'transbank_webpay')
+    .eq('provider_order_id', buyOrder)
+    .single()
+
+  if (orderError || !order) throw new Error('Orden de pago no valida.')
+  return order
+}
+
+type TransbankOrder = Awaited<ReturnType<typeof findTransbankOrderById>>
+
+async function approveCommittedTransbankOrder(order: TransbankOrder, payload: TransbankCommitPayload) {
+  if (!order.provider_order_id || payload.buy_order !== order.provider_order_id) {
+    throw new Error('Orden de pago no valida.')
+  }
+
+  if (order.status === 'paid') return order
+
+  if (payload.status !== 'AUTHORIZED' || payload.response_code !== 0) {
     await serviceSupabase.from('payment_orders').update({
       status: 'failed',
       raw_provider_response: payload,
@@ -353,6 +302,28 @@ async function approveTransbankOrder(orderId: string, tokenWs: string, locatario
   }).eq('id', order.id)
 
   return creditTokens(order.id)
+}
+
+async function approveTransbankOrder(orderId: string, tokenWs: string, locatarioId?: string) {
+  const order = await findTransbankOrderById(orderId, locatarioId)
+  const payload = await commitTransbankTransaction(tokenWs)
+  return approveCommittedTransbankOrder(order, payload)
+}
+
+async function approveTransbankReturn(orderId: string | null, tokenWs: string) {
+  const payload = await commitTransbankTransaction(tokenWs)
+
+  if (orderId) {
+    const order = await findTransbankOrderById(orderId)
+    return approveCommittedTransbankOrder(order, payload)
+  }
+
+  if (!payload.buy_order) {
+    throw new Error('Transbank no retorno una orden de compra valida.')
+  }
+
+  const order = await findTransbankOrderByBuyOrder(payload.buy_order)
+  return approveCommittedTransbankOrder(order, payload)
 }
 
 async function getMercadoPagoPayment(paymentId: string) {
@@ -375,6 +346,39 @@ async function getMercadoPagoPayment(paymentId: string) {
     status?: string
     external_reference?: string
   }>
+}
+
+async function findMercadoPagoPaymentByOrder(orderId: string) {
+  if (!env.MERCADO_PAGO_ACCESS_TOKEN) {
+    throw new Error('Mercado Pago no esta configurado.')
+  }
+
+  const params = new URLSearchParams({
+    external_reference: orderId,
+    sort: 'date_created',
+    criteria: 'desc',
+  })
+  const response = await fetch(`https://api.mercadopago.com/v1/payments/search?${params.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${env.MERCADO_PAGO_ACCESS_TOKEN}`,
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error('No se pudo buscar el pago en Mercado Pago.')
+  }
+
+  const payload = await response.json() as {
+    results?: Array<{
+      id?: number | string
+      status?: string
+      external_reference?: string
+    }>
+  }
+
+  return payload.results?.find((payment) => payment.external_reference === orderId && payment.status === 'approved')
+    ?? payload.results?.find((payment) => payment.external_reference === orderId)
+    ?? null
 }
 
 function getMercadoPagoWebhookPaymentId(req: Request) {
@@ -410,6 +414,36 @@ async function confirmMercadoPagoPayment(paymentId: string) {
   return creditTokens(order.id)
 }
 
+function getRequestString(value: unknown) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
+}
+
+function getTransbankReturnOrderId(req: Request) {
+  return getRequestString(req.query.order) ?? getRequestString(req.body?.order)
+}
+
+function getTransbankReturnTokenWs(req: Request) {
+  return getRequestString(req.query.token_ws) ?? getRequestString(req.body?.token_ws)
+}
+
+async function handleTransbankReturn(req: Request, res: Response) {
+  const orderId = getTransbankReturnOrderId(req)
+  const tokenWs = getTransbankReturnTokenWs(req)
+
+  if (!tokenWs) {
+    return res.redirect(`${normalizeBaseUrl()}/locatario?payment=failed`)
+  }
+
+  try {
+    const paidOrder = await approveTransbankReturn(orderId, tokenWs)
+    return res.redirect(`${normalizeBaseUrl()}/locatario?payment=transbank_success&order=${paidOrder.id}`)
+  } catch {
+    return res.redirect(
+      `${normalizeBaseUrl()}/locatario?payment=transbank_failed${orderId ? `&order=${orderId}` : ''}`,
+    )
+  }
+}
+
 router.post('/mercadopago/webhook', async (req, res) => {
   const paymentId = getMercadoPagoWebhookPaymentId(req)
 
@@ -423,31 +457,13 @@ router.post('/mercadopago/webhook', async (req, res) => {
   }
 })
 
-router.post('/transbank/return', async (req, res) => {
-  const orderId = typeof req.query.order === 'string' ? req.query.order : null
-  const tokenWs = typeof req.body?.token_ws === 'string'
-    ? req.body.token_ws
-    : typeof req.query.token_ws === 'string'
-      ? req.query.token_ws
-      : null
-
-  if (!orderId || !tokenWs) {
-    return res.redirect(`${normalizeBaseUrl()}/locatario?payment=failed`)
-  }
-
-  try {
-    await approveTransbankOrder(orderId, tokenWs)
-    return res.redirect(`${normalizeBaseUrl()}/locatario?payment=transbank_success&order=${orderId}`)
-  } catch {
-    return res.redirect(`${normalizeBaseUrl()}/locatario?payment=transbank_failed&order=${orderId}`)
-  }
-})
+router.route('/transbank/return').get(handleTransbankReturn).post(handleTransbankReturn)
 
 router.get('/packs', (_req, res) => {
   return res.json(Object.values(TOKEN_PACKS))
 })
 
-router.use(withAuth)
+router.use(withAuth, requireRole('locatario'))
 
 router.get('/wallet', async (req, res) => {
   try {
@@ -467,29 +483,6 @@ router.get('/wallet', async (req, res) => {
   }
 })
 
-router.get('/coupons', async (req, res) => {
-  try {
-    const coupons = await listCouponsByLocatario(req.authUser!.id)
-    return res.json({ coupons })
-  } catch {
-    return serverError(res, 'No se pudieron cargar los cupones.')
-  }
-})
-
-router.post('/coupons', async (req, res) => {
-  const parsed = parseCreateCouponInput(req.body)
-
-  if (!parsed.ok) return badRequest(res, parsed.error)
-
-  try {
-    const result = await createCouponCampaign(req.authUser!.id, parsed.data.eventId, parsed.data.durationDays)
-    return res.status(201).json(result)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'No se pudo crear el cupon.'
-    return badRequest(res, message)
-  }
-})
-
 router.post('/purchases', async (req, res) => {
   const parsed = parseCreatePurchaseInput(req.body)
 
@@ -497,6 +490,7 @@ router.post('/purchases', async (req, res) => {
 
   const { packCode, provider } = parsed.data
   const pack = TOKEN_PACKS[packCode]
+  let createdOrderId: string | null = null
 
   try {
     await ensureWallet(req.authUser!.id)
@@ -515,6 +509,7 @@ router.post('/purchases', async (req, res) => {
       .single()
 
     if (orderError) return serverError(res, 'No se pudo crear la orden de pago.')
+    createdOrderId = order.id
 
     const checkout = provider === 'mercadopago'
       ? await createMercadoPagoCheckout(order)
@@ -539,6 +534,12 @@ router.post('/purchases', async (req, res) => {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'No se pudo iniciar el pago.'
+    if (createdOrderId) {
+      await serviceSupabase.from('payment_orders').update({
+        status: 'failed',
+        raw_provider_response: { error: message, stage: 'checkout_creation' },
+      }).eq('id', createdOrderId)
+    }
     return badRequest(res, message)
   }
 })
@@ -644,19 +645,27 @@ router.post('/mercadopago/confirm', async (req, res) => {
       .single()
 
     if (orderError || !order) return badRequest(res, 'Orden de pago no valida.')
+    if (order.status === 'paid') return res.json(order)
 
-    const payload = await getMercadoPagoPayment(paymentId)
+    const payload = paymentId
+      ? await getMercadoPagoPayment(paymentId)
+      : await findMercadoPagoPaymentByOrder(order.id)
+
+    if (!payload) {
+      return badRequest(res, 'Mercado Pago aun no confirma este pago.')
+    }
+
     if (payload.external_reference !== order.id || payload.status !== 'approved') {
       await serviceSupabase.from('payment_orders').update({
         status: payload.status === 'rejected' ? 'failed' : 'pending',
-        provider_payment_id: String(payload.id ?? paymentId),
+        provider_payment_id: String(payload.id ?? paymentId ?? ''),
         raw_provider_response: payload,
       }).eq('id', order.id)
       return badRequest(res, 'Mercado Pago aun no confirma este pago.')
     }
 
     await serviceSupabase.from('payment_orders').update({
-      provider_payment_id: String(payload.id ?? paymentId),
+      provider_payment_id: String(payload.id ?? paymentId ?? ''),
       raw_provider_response: payload,
     }).eq('id', order.id)
 
@@ -716,18 +725,7 @@ router.post('/qr/validate', async (req, res) => {
       return serverError(res, 'No se pudo cargar la campana asociada.')
     }
 
-    const { data: event, error: eventError } = await serviceSupabase
-      .from('locatario_events')
-      .select('id, title, event_date')
-      .eq('id', campaign.event_id)
-      .eq('creator_id', req.authUser!.id)
-      .maybeSingle()
-
-    if (eventError) {
-      return serverError(res, 'No se pudo cargar el evento asociado.')
-    }
-
-    return res.json({ coupon: redeemed, campaign, event: event ?? null })
+    return res.json({ coupon: redeemed, campaign })
   } catch {
     return serverError(res, 'No se pudo validar el QR.')
   }

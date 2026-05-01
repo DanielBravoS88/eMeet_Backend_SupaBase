@@ -44,21 +44,6 @@ export function parseActivatePromotionInput(body: unknown) {
   return { ok: true as const, data: { eventId: input.eventId, type: input.type, durationDays } }
 }
 
-export function parseCreateCouponInput(body: unknown) {
-  const input = body as { eventId?: unknown; durationDays?: unknown }
-  const durationDays = Number(input.durationDays ?? 1)
-
-  if (typeof input.eventId !== 'string') {
-    return { ok: false as const, error: 'Evento no valido.' }
-  }
-
-  if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 30) {
-    return { ok: false as const, error: 'La duracion debe estar entre 1 y 30 dias.' }
-  }
-
-  return { ok: true as const, data: { eventId: input.eventId, durationDays } }
-}
-
 export function parseConfirmTransbankInput(body: unknown) {
   const input = body as { orderId?: unknown; tokenWs?: unknown }
 
@@ -72,8 +57,12 @@ export function parseConfirmTransbankInput(body: unknown) {
 export function parseConfirmMercadoPagoInput(body: unknown) {
   const input = body as { orderId?: unknown; paymentId?: unknown }
 
-  if (typeof input.orderId !== 'string' || typeof input.paymentId !== 'string' || input.paymentId.length < 1) {
+  if (typeof input.orderId !== 'string') {
     return { ok: false as const, error: 'Faltan datos para confirmar Mercado Pago.' }
+  }
+
+  if (input.paymentId !== undefined && (typeof input.paymentId !== 'string' || input.paymentId.length < 1)) {
+    return { ok: false as const, error: 'El pago de Mercado Pago no es valido.' }
   }
 
   return { ok: true as const, data: { orderId: input.orderId, paymentId: input.paymentId } }

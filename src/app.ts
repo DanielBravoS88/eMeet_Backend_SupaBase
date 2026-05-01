@@ -8,14 +8,36 @@ import profileRouter from './routes/profile.routes'
 import eventsRouter from './routes/events'
 import chatRouter from './routes/chat'
 import placesRouter from './routes/places.routes'
+import adminRouter from './routes/admin.routes'
 import monetizationRouter from './routes/monetization.routes'
 
 const app = express()
 
 app.use(helmet())
+
+const allowedOrigins = new Set(
+  [
+    ...env.FRONTEND_ORIGIN.split(','),
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ]
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+)
+
+// Permite cualquier subdominio de vercel.app (preview deployments)
+const VERCEL_ORIGIN_RE = /^https:\/\/[a-z0-9-]+(\.vercel\.app)$/i
+
 app.use(
   cors({
-    origin: env.FRONTEND_ORIGIN,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.has(origin) || VERCEL_ORIGIN_RE.test(origin)) {
+        callback(null, true)
+        return
+      }
+
+      callback(new Error('Not allowed by CORS'))
+    },
     credentials: true,
   }),
 )
@@ -32,6 +54,7 @@ app.use('/profile', profileRouter)
 app.use('/events', eventsRouter)
 app.use('/chat', chatRouter)
 app.use('/places', placesRouter)
+app.use('/admin', adminRouter)
 app.use('/monetization', monetizationRouter)
 
 export default app

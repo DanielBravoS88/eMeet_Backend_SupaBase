@@ -22,24 +22,33 @@ router.get('/', async (req, res) => {
 })
 
 router.patch('/', async (req, res) => {
-  const { name, bio, location, interests } = req.body as {
+  const { name, bio, avatar_url, location, interests, business_name, business_location } = req.body as {
     name?: string
     bio?: string
+    avatar_url?: string | null
     location?: string
     interests?: EventCategory[]
+    business_name?: string | null
+    business_location?: string | null
   }
 
   const payload: {
     name?: string
     bio?: string
+    avatar_url?: string | null
     location?: string
     interests?: EventCategory[]
+    business_name?: string | null
+    business_location?: string | null
   } = {}
 
   if (typeof name === 'string') payload.name = name
   if (typeof bio === 'string') payload.bio = bio
+  if (typeof avatar_url === 'string' || avatar_url === null) payload.avatar_url = avatar_url
   if (typeof location === 'string') payload.location = location
   if (Array.isArray(interests)) payload.interests = interests
+  if (typeof business_name === 'string' || business_name === null) payload.business_name = business_name
+  if (typeof business_location === 'string' || business_location === null) payload.business_location = business_location
 
   if (Object.keys(payload).length === 0) {
     return badRequest(res, 'No hay campos para actualizar.')

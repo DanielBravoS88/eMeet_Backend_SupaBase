@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { createAnonClient } from '../lib/supabase'
+import { createAnonClient, createServiceRoleClient } from '../lib/supabase'
 import { badRequest, serverError } from '../utils/http'
 
 const router = Router()
@@ -8,7 +8,7 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body as { email?: string; password?: string }
 
   if (!email || !password) {
-    return badRequest(res, 'Email y contraseña son obligatorios.')
+    return badRequest(res, 'Email y contrasena son obligatorios.')
   }
 
   const supabase = createAnonClient()
@@ -16,7 +16,7 @@ router.post('/login', async (req, res) => {
 
   if (error) {
     if (error.message.toLowerCase().includes('rate limit')) {
-      return res.status(429).json({ error: 'Demasiados intentos de inicio de sesión. Espera unos minutos e inténtalo de nuevo.' })
+      return res.status(429).json({ error: 'Demasiados intentos de inicio de sesion. Espera unos minutos e intentalo de nuevo.' })
     }
     return badRequest(res, error.message)
   }
@@ -25,21 +25,34 @@ router.post('/login', async (req, res) => {
 })
 
 router.post('/register', async (req, res) => {
-  const { name, email, password, role, businessName, businessLocation } = req.body as {
+  const { name, email, password, role, businessName, businessLocation, bio } = req.body as {
     name?: string
     email?: string
     password?: string
     role?: 'user' | 'locatario' | 'admin'
     businessName?: string
     businessLocation?: string
+    bio?: string
   }
 
   if (!name || !email || !password) {
-    return badRequest(res, 'Nombre, email y contraseña son obligatorios.')
+    return badRequest(res, 'Nombre, email y contrasena son obligatorios.')
   }
 
   if (password.length < 6) {
-    return badRequest(res, 'La contraseña debe tener al menos 6 caracteres.')
+    return badRequest(res, 'La contrasena debe tener al menos 6 caracteres.')
+  }
+
+  if (role === 'admin') {
+    return badRequest(res, 'No se puede crear una cuenta admin desde el registro publico.')
+  }
+
+  const profileRole = role === 'locatario' ? 'locatario' : 'user'
+  const cleanBusinessName = profileRole === 'locatario' ? businessName?.trim() || null : null
+  const cleanBusinessLocation = profileRole === 'locatario' ? businessLocation?.trim() || null : null
+
+  if (profileRole === 'locatario' && !cleanBusinessName) {
+    return badRequest(res, 'Nombre del negocio es obligatorio para locatarios.')
   }
 
   const supabase = createAnonClient()
@@ -49,15 +62,37 @@ router.post('/register', async (req, res) => {
     options: {
       data: {
         name,
-        role: role ?? 'user',
-        business_name: businessName ?? null,
-        business_location: businessLocation ?? null,
+        role: profileRole,
+        business_name: cleanBusinessName,
+        business_location: cleanBusinessLocation,
+        bio: bio?.trim() || '',
       },
     },
   })
 
   if (error) {
     return badRequest(res, error.message)
+  }
+
+  if (data.user) {
+    const serviceSupabase = createServiceRoleClient()
+    const { error: profileError } = await serviceSupabase
+      .from('profiles')
+      .upsert(
+        {
+          id: data.user.id,
+          name,
+          role: profileRole,
+          bio: bio?.trim() || '',
+          business_name: cleanBusinessName,
+          business_location: cleanBusinessLocation,
+        },
+        { onConflict: 'id' },
+      )
+
+    if (profileError) {
+      return serverError(res, 'No se pudo guardar el perfil del usuario.')
+    }
   }
 
   return res.status(201).json({ user: data.user, session: data.session })
