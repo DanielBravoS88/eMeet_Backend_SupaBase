@@ -24,10 +24,13 @@ const allowedOrigins = new Set(
     .filter(Boolean),
 )
 
+// Permite cualquier subdominio de vercel.app (preview deployments)
+const VERCEL_ORIGIN_RE = /^https:\/\/[a-z0-9-]+(\.vercel\.app)$/i
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.has(origin)) {
+      if (!origin || allowedOrigins.has(origin) || VERCEL_ORIGIN_RE.test(origin)) {
         callback(null, true)
         return
       }
