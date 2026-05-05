@@ -1,9 +1,9 @@
 import { Router, type Request } from 'express'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { PROMOTION_COSTS, TOKEN_PACKS } from '../constants/monetization'
 import { env } from '../config/env'
 import { createServiceRoleClient } from '../lib/supabase'
-import { withAuth } from '../middleware/auth'
+import { requireRole, withAuth } from '../middleware/auth'
 import {
   parseActivatePromotionInput,
   parseConfirmMercadoPagoInput,
@@ -257,6 +257,11 @@ function getTransbankCredentials() {
   throw new Error('Faltan TRANSBANK_COMMERCE_CODE y TRANSBANK_API_KEY en el backend.')
 }
 
+function buildTransbankOrderReference(orderId: string) {
+  const digest = createHash('sha256').update(orderId).digest('hex').slice(0, 23)
+  return `tbk${digest}`
+}
+
 async function createTransbankCheckout(order: {
   id: string
   amount_clp: number
@@ -267,6 +272,8 @@ async function createTransbankCheckout(order: {
     ? 'https://webpay3g.transbank.cl'
     : 'https://webpay3gint.transbank.cl'
 
+  const orderReference = buildTransbankOrderReference(order.id)
+
   const response = await fetch(`${host}/rswebpaytransaction/api/webpay/v1.2/transactions`, {
     method: 'POST',
     headers: {
@@ -275,8 +282,8 @@ async function createTransbankCheckout(order: {
       'Tbk-Api-Key-Secret': credentials.apiKey,
     },
     body: JSON.stringify({
-      buy_order: order.id,
-      session_id: order.id,
+      buy_order: orderReference,
+      session_id: orderReference,
       amount: order.amount_clp,
       return_url: `${normalizeBackendUrl()}/monetization/transbank/return?order=${order.id}`,
     }),
@@ -339,7 +346,11 @@ async function approveTransbankOrder(orderId: string, tokenWs: string, locatario
   if (orderError || !order) throw new Error('Orden de pago no valida.')
 
   const payload = await commitTransbankTransaction(tokenWs)
-  if (payload.buy_order !== order.id || payload.status !== 'AUTHORIZED' || payload.response_code !== 0) {
+  if (
+    payload.buy_order !== buildTransbankOrderReference(order.id) ||
+    payload.status !== 'AUTHORIZED' ||
+    payload.response_code !== 0
+  ) {
     await serviceSupabase.from('payment_orders').update({
       status: 'failed',
       raw_provider_response: payload,
@@ -448,6 +459,7 @@ router.get('/packs', (_req, res) => {
 })
 
 router.use(withAuth)
+router.use(requireRole('locatario'))
 
 router.get('/wallet', async (req, res) => {
   try {

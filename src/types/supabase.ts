@@ -8,6 +8,8 @@ export type EventCategory =
   | 'teatro'
   | 'arte'
 
+export type UserRole = 'user' | 'admin' | 'locatario'
+
 export type Json =
   | string
   | number
@@ -26,6 +28,9 @@ export interface Database {
           bio: string
           avatar_url: string | null
           location: string
+          role: UserRole
+          business_name: string | null
+          business_location: string | null
           interests: EventCategory[]
           created_at: string
         }
@@ -35,6 +40,9 @@ export interface Database {
           bio?: string
           avatar_url?: string | null
           location?: string
+          role?: UserRole
+          business_name?: string | null
+          business_location?: string | null
           interests?: EventCategory[]
           created_at?: string
         }
@@ -43,6 +51,9 @@ export interface Database {
           bio?: string
           avatar_url?: string | null
           location?: string
+          role?: UserRole
+          business_name?: string | null
+          business_location?: string | null
           interests?: EventCategory[]
         }
         Relationships: []
@@ -184,8 +195,11 @@ export interface Database {
           address: string
           price: number | null
           image_url: string | null
+          video_url: string | null
           organizer_name: string
           organizer_avatar: string | null
+          lat: number | null
+          lng: number | null
           created_at: string
         }
         Insert: {
@@ -198,8 +212,11 @@ export interface Database {
           address?: string
           price?: number | null
           image_url?: string | null
+          video_url?: string | null
           organizer_name?: string
           organizer_avatar?: string | null
+          lat?: number | null
+          lng?: number | null
           created_at?: string
         }
         Update: {
@@ -212,8 +229,11 @@ export interface Database {
           address?: string
           price?: number | null
           image_url?: string | null
+          video_url?: string | null
           organizer_name?: string
           organizer_avatar?: string | null
+          lat?: number | null
+          lng?: number | null
           created_at?: string
         }
         Relationships: [

@@ -10,6 +10,9 @@ create table if not exists public.profiles (
   bio text not null default '',
   avatar_url text,
   location text not null default '',
+  role text not null default 'user' check (role in ('user', 'admin', 'locatario')),
+  business_name text,
+  business_location text,
   interests text[] not null default '{}',
   created_at timestamptz not null default now(),
   constraint profiles_interests_valid check (
@@ -241,11 +244,14 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, name, avatar_url)
+  insert into public.profiles (id, name, avatar_url, role, business_name, business_location)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    new.raw_user_meta_data->>'avatar_url'
+    new.raw_user_meta_data->>'avatar_url',
+    coalesce(new.raw_user_meta_data->>'role', 'user'),
+    new.raw_user_meta_data->>'business_name',
+    new.raw_user_meta_data->>'business_location'
   )
   on conflict (id) do nothing;
 

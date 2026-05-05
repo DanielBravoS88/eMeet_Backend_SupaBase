@@ -47,8 +47,34 @@ router.get('/rooms', async (req, res) => {
     }
   })
 
+  const lastMessageSenderIds = Array.from(
+    new Set(
+      Array.from(lastMessageByRoom.values())
+        .map((msg) => msg.user_id)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  )
+
+  let lastMessageProfileMap = new Map<string, { id: string; name: string; avatar_url: string | null }>()
+  if (lastMessageSenderIds.length > 0) {
+    const { data: profiles, error: profilesError } = await req.supabase!
+      .from('profiles')
+      .select('id, name, avatar_url')
+      .in('id', lastMessageSenderIds)
+
+    if (profilesError) {
+      return serverError(res, 'No se pudieron cargar los perfiles del chat.')
+    }
+
+    lastMessageProfileMap = new Map(profiles.map((profile) => [profile.id, profile]))
+  }
+
   const result = rooms.map((room) => {
     const lastReadAt = memberships.find((m) => m.room_id === room.id)?.last_read_at
+    const lastMessageRow = lastMessageByRoom.get(room.id) ?? null
+    const lastMessageSender = lastMessageRow
+      ? lastMessageProfileMap.get(lastMessageRow.user_id)
+      : null
     const unreadCount = messages.filter(
       (msg) =>
         msg.room_id === room.id &&
@@ -62,7 +88,17 @@ router.get('/rooms', async (req, res) => {
       eventImageUrl: room.event_image_url,
       eventAddress: room.event_address,
       memberCount: memberCountMap[room.id] ?? 0,
-      lastMessage: lastMessageByRoom.get(room.id) ?? null,
+      lastMessage: lastMessageRow
+        ? {
+            id: lastMessageRow.id,
+            roomId: lastMessageRow.room_id,
+            senderId: lastMessageRow.user_id,
+            senderName: lastMessageSender?.name ?? 'Usuario',
+            senderAvatar: lastMessageSender?.avatar_url ?? '',
+            text: lastMessageRow.text,
+            timestamp: lastMessageRow.created_at,
+          }
+        : null,
       unreadCount,
     }
   })

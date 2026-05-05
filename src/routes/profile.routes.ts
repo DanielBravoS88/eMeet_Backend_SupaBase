@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import type { Request } from 'express'
 import { withAuth } from '../middleware/auth'
 import { badRequest, serverError } from '../utils/http'
 import type { EventCategory } from '../types/supabase'
@@ -7,25 +8,61 @@ const router = Router()
 
 router.use(withAuth)
 
-router.get('/', async (req, res) => {
+async function ensureOwnProfile(req: Request) {
+  const metadata = (req.authUser?.user_metadata ?? {}) as {
+    name?: string
+    avatar_url?: string | null
+  }
+
   const { data, error } = await req.supabase!
     .from('profiles')
     .select('*')
     .eq('id', req.authUser!.id)
-    .single()
+    .maybeSingle()
 
   if (error) {
-    return serverError(res, 'No se pudo obtener el perfil.')
+    throw error
   }
 
-  return res.json(data)
+  if (data) {
+    return data
+  }
+
+  const { data: createdProfile, error: createError } = await req.supabase!
+    .from('profiles')
+    .insert({
+      id: req.authUser!.id,
+      name: metadata.name?.trim() || req.authUser!.email?.split('@')[0] || 'Usuario',
+      avatar_url: metadata.avatar_url ?? null,
+      bio: '',
+      location: '',
+      interests: [],
+    })
+    .select('*')
+    .single()
+
+  if (createError) {
+    throw createError
+  }
+
+  return createdProfile
+}
+
+router.get('/', async (req, res) => {
+  try {
+    const profile = await ensureOwnProfile(req)
+    return res.json(profile)
+  } catch {
+    return serverError(res, 'No se pudo obtener el perfil.')
+  }
 })
 
 router.patch('/', async (req, res) => {
-  const { name, bio, location, interests } = req.body as {
+  const { name, bio, location, interests, avatar_url } = req.body as {
     name?: string
     bio?: string
     location?: string
+    avatar_url?: string
     interests?: EventCategory[]
   }
 
@@ -33,12 +70,14 @@ router.patch('/', async (req, res) => {
     name?: string
     bio?: string
     location?: string
+    avatar_url?: string
     interests?: EventCategory[]
   } = {}
 
   if (typeof name === 'string') payload.name = name
   if (typeof bio === 'string') payload.bio = bio
   if (typeof location === 'string') payload.location = location
+  if (typeof avatar_url === 'string') payload.avatar_url = avatar_url
   if (Array.isArray(interests)) payload.interests = interests
 
   if (Object.keys(payload).length === 0) {
