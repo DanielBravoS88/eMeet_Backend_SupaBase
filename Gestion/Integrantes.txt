@@ -3,8 +3,8 @@ Proyecto: eMeet
 Integrantes del equipo:
 - Daniel Bravo (DanielBravoS88) — Líder del proyecto, despliegue, CORS, integración cloud
 - Antonio Vivar (Antonio-Vivar07) — Módulo de monetización, autenticación
-- Franco (Fr4nk017) — Bootstrap inicial, autenticación, administración, tablas de base de datos
-- Gustavo (Gustygithub) — Colaboración en frontend y pruebas
+- Francisco Levipil (Fr4nk017) — Bootstrap inicial, autenticación, administración, tablas de base de datos
+
 
 Repositorios del proyecto:
 - Frontend : https://github.com/DanielBravoS88/eMeet_frontend
