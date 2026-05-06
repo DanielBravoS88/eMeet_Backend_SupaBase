@@ -106,18 +106,15 @@ declare
   v_users integer;
   v_messages integer;
   v_rooms integer;
-  v_reports integer;
 begin
   select count(*) into v_users from public.profiles;
   select count(*) into v_messages from public.chat_messages;
   select count(*) into v_rooms from public.chat_rooms;
-  select count(*) into v_reports from public.reports where status = 'pending';
 
   return json_build_object(
     'total_users', v_users,
     'total_messages', v_messages,
-    'total_rooms', v_rooms,
-    'pending_reports', v_reports
+    'total_rooms', v_rooms
   );
 end;
 $$;
