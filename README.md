@@ -2,6 +2,25 @@
 
 Backend API para eMeet usando Express + TypeScript + Supabase.
 
+## Estructura de entrega académica
+
+| Carpeta | Contenido |
+|---------|-----------|
+| [Documentacion/](./Documentacion/README.md) | Arquitectura, modelo de datos, Gantt |
+| [Producto/](./Producto/README.md) | Scripts SQL, datos de prueba, referencia API |
+| [Gestion/](./Gestion/README.md) | Integrantes, estrategia de ramas, infraestructura cloud, respaldo BD |
+
+## Repositorios del proyecto
+
+- **Backend (este repositorio):** https://github.com/DanielBravoS88/eMeet_Backend_SupaBase
+- **Frontend:** https://github.com/DanielBravoS88/eMeet_frontend
+
+## Despliegues
+
+- **Frontend:** https://e-meet-frontend-nine.vercel.app/ (Vercel)
+- **Backend:** Render (Web Service)
+- **Base de datos:** Supabase (PostgreSQL)
+
 ## Ejecutar local
 
 1. Copia `.env.example` a `.env` y completa variables.
