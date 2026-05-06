@@ -79,3 +79,22 @@ Authorization: Bearer <access_token>
 
 ## Estado de salud
 - `GET /health`
+
+---
+
+## Estructura de entrega académica
+
+| Carpeta | Descripción |
+|---------|-------------|
+| [Documentacion/](Documentacion/README.md) | Arquitectura, base de datos, carta Gantt |
+| [Producto/](Producto/README.md) | API reference, scripts SQL, datos de prueba |
+| [Gestion/](Gestion/README.md) | Integrantes, estrategia de ramas, infraestructura cloud, backup BD |
+
+**Repositorios del proyecto:**
+- Frontend: https://github.com/DanielBravoS88/eMeet_frontend
+- Backend: https://github.com/DanielBravoS88/eMeet_Backend_SupaBase
+
+**Despliegues:**
+- Frontend: https://e-meet-frontend-nine.vercel.app/
+- Backend: Render (API REST)
+- Base de datos: Supabase (PostgreSQL)
