@@ -3,8 +3,8 @@ Proyecto: eMeet
 Integrantes del equipo:
 - Daniel Bravo
 - Antonio Vivar
-- Franco (Fr4nk017)
-- Gustavo (Gustygithub)
+- Francisco Levipil
+
 
 Repositorios del proyecto:
 - Frontend:  https://github.com/DanielBravoS88/eMeet_frontend
