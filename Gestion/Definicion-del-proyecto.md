@@ -93,9 +93,9 @@ Desarrollar una plataforma web full-stack funcional para la gestión de eventos 
 | Integrante | GitHub | Responsabilidad principal |
 |------------|--------|--------------------------|
 | Daniel Bravo | DanielBravoS88 | Líder del proyecto, CORS, despliegue, integración |
-| Antonio Vivar | Antonio-Vivar07 | Módulo de monetización, autenticación |
-| Franco | Fr4nk017 | Bootstrap inicial, admin, autenticación, BD |
-| Gustavo | Gustygithub | Frontend, UI/UX |
+| Antonio Vivar | Antonio-Vivar07 | Módulo de monetización, autenticación |UI/UX |
+| Francisco Levipil | Fr4nk017 | Bootstrap inicial, admin, autenticación, BD |
+
 
 ---
 
