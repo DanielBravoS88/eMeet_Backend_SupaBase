@@ -6,9 +6,9 @@
 ## Rama de desarrollo
 - `dev`: integración de funcionalidades antes de fusionarse a `main`.
 
-## Ramas de apoyo
-- `feature/*`: desarrollo de nuevas funcionalidades.
-- `fix/*`: correcciones de errores específicos.
+## Rama de apoyo
+- `estructura-de-documentación`: desarrollo de documentación.
+  
 
 ## Flujo de trabajo
 1. Cada integrante trabaja en su propia rama de funcionalidad (`feature/nombre-tarea`).
