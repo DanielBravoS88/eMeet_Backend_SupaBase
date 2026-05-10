@@ -1,0 +1,16 @@
+Proyecto: eMeet
+
+Integrantes del equipo:
+- Daniel Bravo
+- Antonio Vivar
+- Francisco Levipil
+
+
+Repositorios del proyecto:
+- Frontend:  https://github.com/DanielBravoS88/eMeet_frontend
+- Backend:   https://github.com/DanielBravoS88/eMeet_Backend_SupaBase
+
+Despliegues:
+- Frontend: https://e-meet-frontend-nine.vercel.app/
+- Backend:  desplegado en Render
+- Base de datos: Supabase (PostgreSQL)
