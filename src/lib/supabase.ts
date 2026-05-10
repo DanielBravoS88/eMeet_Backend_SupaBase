@@ -14,6 +14,6 @@ export function createAnonClient(authToken?: string): SupabaseClient<Database> {
   })
 }
 
-export function createServiceRoleClient(): SupabaseClient<Database> {
-  return createClient<Database>(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+export function createServiceRoleClient(): SupabaseClient<any> {
+  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
 }

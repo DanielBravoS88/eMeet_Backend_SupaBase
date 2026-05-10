@@ -8,6 +8,16 @@ export type EventCategory =
   | 'teatro'
   | 'arte'
 
+export type UserRole = 'user' | 'admin' | 'locatario'
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
 export interface Database {
   public: {
     Tables: {
@@ -15,10 +25,10 @@ export interface Database {
         Row: {
           id: string
           name: string
-          role: 'user' | 'locatario' | 'admin'
           bio: string
           avatar_url: string | null
           location: string
+          role: UserRole
           business_name: string | null
           business_location: string | null
           interests: EventCategory[]
@@ -27,10 +37,10 @@ export interface Database {
         Insert: {
           id: string
           name: string
-          role?: 'user' | 'locatario' | 'admin'
           bio?: string
           avatar_url?: string | null
           location?: string
+          role?: UserRole
           business_name?: string | null
           business_location?: string | null
           interests?: EventCategory[]
@@ -38,10 +48,10 @@ export interface Database {
         }
         Update: {
           name?: string
-          role?: 'user' | 'locatario' | 'admin'
           bio?: string
           avatar_url?: string | null
           location?: string
+          role?: UserRole
           business_name?: string | null
           business_location?: string | null
           interests?: EventCategory[]

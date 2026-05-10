@@ -1,8 +1,10 @@
 import { Router } from 'express'
+import { createServiceRoleClient } from '../lib/supabase'
 import { requireRole, withAuth } from '../middleware/auth'
 import { badRequest, serverError } from '../utils/http'
 
 const router = Router()
+const serviceSupabase = createServiceRoleClient()
 
 const EVENT_CATEGORIES = ['gastronomia', 'musica', 'cultura', 'networking', 'deporte', 'fiesta', 'teatro', 'arte'] as const
 
@@ -11,6 +13,25 @@ type EventCategory = (typeof EVENT_CATEGORIES)[number]
 function isOneOf<T extends readonly string[]>(value: unknown, options: T): value is T[number] {
   return typeof value === 'string' && options.includes(value)
 }
+
+function parseOptionalNumber(value: unknown) {
+  if (value === null || value === undefined || value === '') return null
+  if (typeof value !== 'number' || Number.isNaN(value)) return Number.NaN
+  return value
+}
+
+router.get('/locatario/public', async (_req, res) => {
+  const { data, error } = await serviceSupabase
+    .from('locatario_events')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    return serverError(res, 'No se pudieron obtener los eventos publicos.')
+  }
+
+  return res.json(data ?? [])
+})
 
 router.use(withAuth)
 
@@ -195,9 +216,13 @@ router.post('/locatario', requireRole('locatario'), async (req, res) => {
     category?: EventCategory
     event_date?: string
     address?: string
+    price?: number | null
     image_url?: string | null
+    video_url?: string | null
     organizer_name?: string
     organizer_avatar?: string | null
+    lat?: number | null
+    lng?: number | null
   }
 
   if (!body.title?.trim() || !body.description?.trim() || !body.event_date || !body.category) {
@@ -213,6 +238,18 @@ router.post('/locatario', requireRole('locatario'), async (req, res) => {
     return badRequest(res, 'La fecha del evento no es valida.')
   }
 
+  const price = parseOptionalNumber(body.price)
+  if (Number.isNaN(price)) {
+    return badRequest(res, 'El precio del evento no es valido.')
+  }
+
+  const lat = parseOptionalNumber(body.lat)
+  const lng = parseOptionalNumber(body.lng)
+
+  if (Number.isNaN(lat) || Number.isNaN(lng)) {
+    return badRequest(res, 'Las coordenadas del evento no son validas.')
+  }
+
   const { data, error } = await req.supabase!
     .from('locatario_events')
     .insert({
@@ -222,9 +259,13 @@ router.post('/locatario', requireRole('locatario'), async (req, res) => {
       category: body.category,
       event_date: eventDate.toISOString(),
       address: body.address?.trim() ?? '',
+      price,
       image_url: body.image_url?.trim() || null,
+      video_url: body.video_url?.trim() || null,
       organizer_name: body.organizer_name ?? '',
       organizer_avatar: body.organizer_avatar ?? null,
+      lat,
+      lng,
     })
     .select('*')
     .single()

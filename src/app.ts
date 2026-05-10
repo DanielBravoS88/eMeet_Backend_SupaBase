@@ -9,6 +9,7 @@ import eventsRouter from './routes/events'
 import chatRouter from './routes/chat'
 import placesRouter from './routes/places.routes'
 import adminRouter from './routes/admin.routes'
+import monetizationRouter from './routes/monetization.routes'
 
 const app = express()
 
@@ -24,10 +25,13 @@ const allowedOrigins = new Set(
     .filter(Boolean),
 )
 
+// Permite cualquier subdominio de vercel.app (preview deployments)
+const VERCEL_ORIGIN_RE = /^https:\/\/[a-z0-9-]+(\.vercel\.app)$/i
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.has(origin)) {
+      if (!origin || allowedOrigins.has(origin) || VERCEL_ORIGIN_RE.test(origin)) {
         callback(null, true)
         return
       }
@@ -38,6 +42,7 @@ app.use(
   }),
 )
 app.use(express.json({ limit: '2mb' }))
+app.use(express.urlencoded({ extended: false }))
 app.use(morgan('dev'))
 
 app.get('/health', (_req, res) => {
@@ -50,5 +55,6 @@ app.use('/events', eventsRouter)
 app.use('/chat', chatRouter)
 app.use('/places', placesRouter)
 app.use('/admin', adminRouter)
+app.use('/monetization', monetizationRouter)
 
 export default app
