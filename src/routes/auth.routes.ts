@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { createAnonClient, createServiceRoleClient } from '../lib/supabase'
 import { badRequest, serverError } from '../utils/http'
+import { env } from '../config/env'
 
 const router = Router()
 
@@ -128,6 +129,69 @@ router.get('/session', async (req, res) => {
   }
 
   return res.json({ session: data.session })
+})
+
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body as { email?: string }
+
+  if (!email) {
+    return badRequest(res, 'El email es obligatorio.')
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email)) {
+    return badRequest(res, 'El formato del email no es valido.')
+  }
+
+  const frontendUrl = env.FRONTEND_ORIGIN.split(',')[0].trim()
+  const supabase = createAnonClient()
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${frontendUrl}/auth/reset-password`,
+  })
+
+  // Siempre respondemos igual para no filtrar si el email existe (previene enumeracion)
+  return res.json({
+    message: 'Si el email esta registrado, recibiras un enlace para restablecer tu contrasena.',
+  })
+})
+
+router.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body as { token?: string; newPassword?: string }
+
+  if (!token || !newPassword) {
+    return badRequest(res, 'El token y la nueva contrasena son obligatorios.')
+  }
+
+  if (newPassword.length < 8) {
+    return badRequest(res, 'La contrasena debe tener al menos 8 caracteres.')
+  }
+  if (!/[A-Z]/.test(newPassword)) {
+    return badRequest(res, 'La contrasena debe contener al menos una letra mayuscula.')
+  }
+  if (!/[a-z]/.test(newPassword)) {
+    return badRequest(res, 'La contrasena debe contener al menos una letra minuscula.')
+  }
+  if (!/[0-9]/.test(newPassword)) {
+    return badRequest(res, 'La contrasena debe contener al menos un numero.')
+  }
+
+  const anonClient = createAnonClient(token)
+  const { data: userData, error: userError } = await anonClient.auth.getUser()
+
+  if (userError || !userData.user) {
+    return badRequest(res, 'El token es invalido o ha expirado.')
+  }
+
+  const serviceClient = createServiceRoleClient()
+  const { error: updateError } = await serviceClient.auth.admin.updateUserById(userData.user.id, {
+    password: newPassword,
+  })
+
+  if (updateError) {
+    return serverError(res, 'No se pudo actualizar la contrasena.')
+  }
+
+  return res.json({ message: 'Contrasena actualizada exitosamente.' })
 })
 
 export default router

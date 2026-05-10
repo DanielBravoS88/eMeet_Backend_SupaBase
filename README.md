@@ -51,6 +51,8 @@ Authorization: Bearer <access_token>
 - `POST /auth/register`
 - `POST /auth/logout`
 - `GET /auth/session`
+- `POST /auth/forgot-password`
+- `POST /auth/reset-password`
 
 ### Perfil
 - `GET /profile`
