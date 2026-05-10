@@ -1,108 +1,27 @@
-# Producto — eMeet Backend
+# 📦 Producto — eMeet
 
-Esta carpeta documenta los artefactos del producto del backend de eMeet.
-
-## Contenido
-
-| Recurso | Ubicación | Descripción |
-|---------|-----------|-------------|
-| Código fuente | [`src/`](../src/) | API REST en TypeScript/Express |
-| Schema de BD | [`prisma/schema.prisma`](../prisma/schema.prisma) | Modelos de datos con Prisma ORM |
-| Script SQL inicial | [`supabase/001_emeet_schema.sql`](../supabase/001_emeet_schema.sql) | Tablas, políticas RLS, Storage y Realtime |
-| Dependencias | [`package.json`](../package.json) | Lista de librerías y versiones |
-| Variables de entorno | [`.env.example`](../.env.example) | Plantilla de configuración |
-| Configuración Supabase | [`SETUP_SUPABASE.md`](../SETUP_SUPABASE.md) | Guía de configuración de Supabase |
+Esta carpeta contiene los antecedentes técnicos del producto eMeet, incluyendo la descripción del código fuente, las dependencias, las funcionalidades implementadas, los datos y scripts, y las instrucciones para levantar el ambiente local.
 
 ---
 
-## Estructura del código fuente
+## 📂 Contenido de esta carpeta
 
-```
-src/
-├── app.ts              # Configuración Express, middlewares, rutas
-├── server.ts           # Entry point del servidor
-├── config/             # Variables de entorno
-├── routes/             # Handlers HTTP por módulo
-│   ├── auth.routes.ts
-│   ├── profile.routes.ts
-│   ├── events.routes.ts
-│   ├── chat.routes.ts
-│   ├── places.routes.ts
-│   ├── admin.routes.ts
-│   └── monetization.routes.ts
-├── middleware/         # Auth middleware + tests
-├── services/           # Lógica de negocio (Places API)
-├── schemas/            # Validaciones con Zod
-├── lib/                # Clientes Supabase y Prisma
-├── types/              # Tipos TypeScript
-├── constants/          # Constantes
-└── utils/              # Utilidades HTTP
-```
+| Archivo | Descripción |
+|---|---|
+| [Codigo-fuente.md](./Codigo-fuente.md) | Descripción de la estructura del código fuente y cómo ejecutar el proyecto |
+| [Librerias-y-dependencias.md](./Librerias-y-dependencias.md) | Análisis de todas las dependencias del proyecto (`package.json`) |
+| [Funcionalidades.md](./Funcionalidades.md) | Inventario completo de funcionalidades (implementadas, mock, pendientes) |
+| [Datos-y-script.md](./Datos-y-script.md) | Documentación de datos mock, scripts sugeridos y relación con Supabase |
+| [Ambiente-local.md](./Ambiente-local.md) | Guía paso a paso para levantar el proyecto en ambiente local |
 
 ---
 
-## Base de datos
+## 🔗 Relación con otras carpetas
 
-El esquema completo de la base de datos se encuentra en:
-- **`supabase/001_emeet_schema.sql`**: script SQL para ejecutar en Supabase.
-- **`prisma/schema.prisma`**: definición de modelos para Prisma ORM.
-
-### Tablas principales
-| Tabla | Descripción |
-|-------|-------------|
-| `profiles` | Perfiles de usuario |
-| `locatario_events` | Eventos creados por organizadores |
-| `user_events` | Interacciones usuario-evento (likes, guardados) |
-| `chat_rooms` | Salas de chat por evento |
-| `room_members` | Miembros de cada sala |
-| `chat_messages` | Mensajes de chat |
-| `reports` | Reportes de moderación |
-| `transactions` | Transacciones financieras |
+- 📁 [**`/Documentacion`**](../Documentacion/README.md): informe académico, arquitectura, UML, MER, wireframes y QA.
+- 📁 [**`/Gestion`**](../Gestion/README.md): gestión del proyecto, integrantes, estrategia de ramas e infraestructura.
 
 ---
 
-## Dependencias principales
-
-| Librería | Versión | Uso |
-|----------|---------|-----|
-| express | 5.x | Framework HTTP |
-| @supabase/supabase-js | 2.x | Cliente Supabase |
-| @prisma/client | 6.x | ORM |
-| helmet | - | Seguridad HTTP |
-| morgan | - | Logging |
-| zod | - | Validación de schemas |
-| vitest | 3.x | Testing |
-
-Ver [`package.json`](../package.json) para la lista completa.
-
----
-
-## Cómo ejecutar localmente
-
-```bash
-# 1. Instalar dependencias
-npm install
-
-# 2. Configurar variables de entorno
-cp .env.example .env
-# Editar .env con tus credenciales de Supabase
-
-# 3. Modo desarrollo
-npm run dev
-
-# 4. Build de producción
-npm run build
-npm run start
-
-# 5. Ejecutar tests
-npm test
-```
-
----
-
-## Despliegue
-
-- **Plataforma**: Render
-- **Rama de producción**: `main`
-- El despliegue se activa automáticamente ante cada push a `main`.
-- Configurar las variables de entorno en el dashboard de Render según `.env.example`.
+> Documentación generada en mayo de 2026 para la entrega académica del proyecto eMeet.  
+> Integrantes: **Daniel Bravo**, **Francisco Levipil**, **Antoni Vivar**.

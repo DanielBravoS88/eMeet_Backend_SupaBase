@@ -1,16 +1,14 @@
-Proyecto: eMeet
+Daniel Bravo
+- Rol:
+- Responsabilidades:
+- Correo:
 
-Integrantes del equipo:
-- Daniel Bravo
-- Antonio Vivar
-- Francisco Levipil
+Francisco Levipil
+- Rol:
+- Responsabilidades:
+- Correo:
 
-
-Repositorios del proyecto:
-- Frontend:  https://github.com/DanielBravoS88/eMeet_frontend
-- Backend:   https://github.com/DanielBravoS88/eMeet_Backend_SupaBase
-
-Despliegues:
-- Frontend: https://e-meet-frontend-nine.vercel.app/
-- Backend:  desplegado en Render
-- Base de datos: Supabase (PostgreSQL)
+Antoni Vivar
+- Rol:
+- Responsabilidades:
+- Correo:
