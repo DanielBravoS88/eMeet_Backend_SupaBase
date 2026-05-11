@@ -18,7 +18,7 @@ const router = Router()
 const serviceSupabase = createServiceRoleClient()
 
 function normalizeBaseUrl() {
-  return env.FRONTEND_ORIGIN.replace(/\/$/, '')
+  return env.FRONTEND_ORIGIN.trim().replace(/\/$/, '')
 }
 
 function normalizeBackendUrl() {
@@ -737,5 +737,16 @@ router.post('/qr/validate', async (req, res) => {
     return serverError(res, 'No se pudo validar el QR.')
   }
 })
+
+
+// GET /coupons - Retorna array vacío temporalmente para mitigar error 404 en el frontend
+router.get('/coupons', withAuth, async (req, res) => {
+  try {
+    return res.status(200).json({ coupons: [] });
+  } catch (error) {
+    console.error("Error al obtener cupones:", error);
+    return badRequest(res, "No se pudieron obtener los cupones");
+  }
+});
 
 export default router
