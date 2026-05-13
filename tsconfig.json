@@ -6,11 +6,17 @@
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
+    "ignoreDeprecations": "5.0",
     "skipLibCheck": true,
     "types": ["node", "vitest/globals"],
     "outDir": "dist",
     "rootDir": "src"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/routes/monetization.routes.ts",
+    "src/schemas/monetization.schema.ts"
+  ]
 }

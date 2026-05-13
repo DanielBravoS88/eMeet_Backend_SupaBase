@@ -21,22 +21,32 @@ router.get('/rooms', async (req, res) => {
     return res.json([])
   }
 
-  const [{ data: rooms, error: roomError }, { data: messages, error: messageError }, { data: membersCountRows, error: membersCountError }] = await Promise.all([
+  const [{ data: rooms, error: roomError }, { data: messages, error: messageError }] = await Promise.all([
     req.supabase!.from('chat_rooms').select('*').in('id', roomIds),
     req.supabase!
       .from('chat_messages')
       .select('id, room_id, user_id, text, created_at')
       .in('room_id', roomIds)
       .order('created_at', { ascending: false }),
-    req.supabase!.from('room_members').select('room_id').in('room_id', roomIds),
   ])
 
-  if (roomError || messageError || membersCountError) {
+  if (roomError || messageError) {
     return serverError(res, 'No se pudieron cargar las salas de chat.')
   }
 
-  const memberCountMap = membersCountRows.reduce<Record<string, number>>((acc, row) => {
-    acc[row.room_id] = (acc[row.room_id] ?? 0) + 1
+  const activeParticipantsByRoom = new Map<string, Set<string>>()
+  for (const roomId of roomIds) {
+    activeParticipantsByRoom.set(roomId, new Set([req.authUser!.id]))
+  }
+
+  for (const msg of messages) {
+    const participants = activeParticipantsByRoom.get(msg.room_id) ?? new Set<string>()
+    participants.add(msg.user_id)
+    activeParticipantsByRoom.set(msg.room_id, participants)
+  }
+
+  const memberCountMap = Array.from(activeParticipantsByRoom.entries()).reduce<Record<string, number>>((acc, [roomId, members]) => {
+    acc[roomId] = members.size
     return acc
   }, {})
 

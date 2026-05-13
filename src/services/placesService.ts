@@ -1,6 +1,6 @@
 import 'dotenv/config'
 
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || ''
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_SERVER_API_KEY || process.env.GOOGLE_MAPS_API_KEY || ''
 
 interface LatLng {
   lat: number
@@ -51,7 +51,9 @@ export async function searchNearbyPlaces(
     const data = await response.json()
 
     if (data.error_message) {
-      throw new Error(`Google Places API error: ${data.error_message}`)
+      throw new Error(
+        `Google Places API error: ${data.error_message}. Usa una clave de servidor (IP o sin restriccion) para el backend, no una clave solo con restriccion de referer.`,
+      )
     }
 
     return data.results || []

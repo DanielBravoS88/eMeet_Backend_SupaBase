@@ -1,108 +1,147 @@
-# Definición e identificación del proyecto
-
-## Nombre del proyecto
-**eMeet** — Plataforma de eventos sociales
+# Definición del Proyecto — eMeet
 
 ---
 
-## Descripción general
-eMeet es una plataforma web que permite a usuarios descubrir, crear y participar en eventos sociales. Los organizadores (locatarios) pueden publicar eventos, mientras que los usuarios pueden buscarlos, marcarlos como favoritos, asistir a salas de chat asociadas y realizar transacciones para adquirir tickets o suscripciones.
+## 1. Nombre del Proyecto
+
+**eMeet** — Plataforma de descubrimiento social de eventos y lugares cercanos.
 
 ---
 
-## Problema que resuelve
-La dificultad de encontrar y organizar eventos sociales locales de forma centralizada, con herramientas de comunicación en tiempo real y gestión de pagos integrada.
+## 2. Integrantes del Equipo
+
+| Nombre | Rol sugerido |
+|---|---|
+| Daniel Bravo | Desarrollador Full-Stack / Líder técnico |
+| Francisco Levipil | Desarrollador Full-Stack / Integración backend |
+| Antoni Vivar | Desarrollador Frontend / UX |
+
+> Para información detallada de cada integrante, ver [Integrantes.txt](./Integrantes.txt).
 
 ---
 
-## Objetivos del proyecto
+## 3. Descripción del Proyecto
 
-### Objetivo general
-Desarrollar una plataforma web full-stack funcional para la gestión de eventos sociales, con autenticación segura, comunicación en tiempo real y sistema de monetización.
+eMeet es una plataforma web móvil-first que conecta a personas con eventos, bares, restaurantes y lugares de interés cercanos. Utiliza una mecánica de descubrimiento tipo swipe (deslizar tarjetas) combinada con geolocalización en tiempo real, un sistema de roles diferenciados (usuario, locatario, administrador) y comunidades de chat por lugar.
 
-### Objetivos específicos
-1. Implementar un sistema de autenticación con roles (admin, locatario, usuario).
-2. Permitir la creación y gestión de eventos por parte de locatarios.
-3. Proveer salas de chat en tiempo real asociadas a eventos.
-4. Integrar Google Maps Places API para localizar eventos.
-5. Implementar un sistema de transacciones (tickets, suscripciones, comisiones).
-6. Desarrollar un panel de administración con KPIs y moderación.
+El proyecto está compuesto por dos repositorios:
+- **`eMeet_frontend`**: frontend desarrollado en Next.js 14, React 18, TypeScript y Tailwind CSS.
+- **`eMeet_Backend_Supabase`**: backend con lógica de negocio y API REST, apoyado en Supabase como plataforma de datos y autenticación.
 
 ---
 
-## Alcance
+## 4. Problema Identificado
 
-### Incluido
-- API REST backend con Express/TypeScript
-- Autenticación y autorización con Supabase Auth
-- CRUD de eventos (locatarios)
-- Sistema de likes y guardado de eventos (usuarios)
-- Chat en tiempo real por sala
-- Gestión de perfiles con avatar
-- Sistema de reportes de moderación
-- Transacciones financieras básicas
-- Panel de administración
+Las personas que desean descubrir actividades, eventos y establecimientos cercanos a su ubicación deben navegar por múltiples plataformas desconectadas (Google Maps, redes sociales, sitios web de locales), sin una experiencia unificada, personalizada e intuitiva que facilite la toma de decisión y el descubrimiento social.
 
-### Excluido
-- Pasarela de pagos real (solo simulación)
-- Notificaciones push
-- Aplicación móvil
+Adicionalmente, los propietarios de establecimientos carecen de una herramienta simple y directa para publicar y promocionar sus eventos hacia una audiencia localizada.
 
 ---
 
-## Usuarios objetivo
-| Rol | Descripción |
-|-----|-------------|
-| **Admin** | Moderación, KPIs, gestión de usuarios |
-| **Locatario** | Organizar y publicar eventos |
-| **Usuario** | Descubrir eventos, participar en chat, comprar tickets |
+## 5. Justificación
+
+El proyecto responde a una necesidad real del mercado de entretenimiento y gastronomía local. La combinación de geolocalización, mecánica de swipe y comunidades en tiempo real ofrece una propuesta diferenciadora frente a plataformas genéricas. Desde el punto de vista académico, el proyecto permite aplicar y demostrar competencias en:
+
+- Desarrollo full-stack moderno con Next.js 14, TypeScript y Supabase.
+- Integración de APIs externas (Google Maps Platform).
+- Arquitectura orientada a microservicios lógicos con BFF.
+- Diseño UX/UI mobile-first con Tailwind CSS y Framer Motion.
 
 ---
 
-## Stack tecnológico
+## 6. Objetivo General
 
-### Backend (este repositorio)
-| Tecnología | Versión | Rol |
-|------------|---------|-----|
-| Node.js | 18+ | Runtime |
-| TypeScript | 5.x | Lenguaje principal |
-| Express | 5.x | Framework HTTP |
-| Prisma | 6.x | ORM |
-| Supabase | 2.x | Auth + BD + Storage |
-| Vitest | 3.x | Testing |
-| Helmet | - | Seguridad HTTP |
-
-### Frontend (repositorio separado)
-| Tecnología | Versión | Rol |
-|------------|---------|-----|
-| Next.js | 15+ | Framework React |
-| TypeScript | 5.x | Lenguaje principal |
-| Tailwind CSS | 3.x | Estilos |
-
-### Infraestructura
-| Servicio | Rol |
-|----------|-----|
-| Render | Hosting del backend |
-| Vercel | Hosting del frontend |
-| Supabase | Base de datos + Auth + Storage |
+Desarrollar una plataforma web móvil-first que permita a los usuarios descubrir, explorar y guardar eventos y lugares de interés cercanos, con soporte para comunidades en tiempo real, roles diferenciados y gestión de contenido, utilizando Next.js 14, Supabase y Google Maps Places API.
 
 ---
 
-## Equipo y roles
+## 7. Objetivos Específicos
 
-| Integrante | GitHub | Responsabilidad principal |
-|------------|--------|--------------------------|
-| Daniel Bravo | DanielBravoS88 | Líder del proyecto, CORS, despliegue, integración |
-| Antonio Vivar | Antonio-Vivar07 | Módulo de monetización, autenticación |UI/UX |
-| Francisco Levipil | Fr4nk017 | Bootstrap inicial, admin, autenticación, BD |
-
+1. Implementar un sistema de autenticación con roles mediante Supabase Auth.
+2. Desarrollar un feed de swipe de lugares obtenidos desde Google Maps Places API.
+3. Construir un chat comunitario en tiempo real usando Supabase Realtime.
+4. Desarrollar paneles diferenciados para locatarios y administradores.
+5. Persistir preferencias, likes, guardados y mensajes en Supabase PostgreSQL.
+6. Diseñar una arquitectura escalable con BFF en Next.js Route Handlers.
+7. Documentar el proyecto con estándares académicos.
 
 ---
 
-## Repositorios
-- **Backend**: https://github.com/DanielBravoS88/eMeet_Backend_SupaBase
-- **Frontend**: https://github.com/DanielBravoS88/eMeet_frontend
+## 8. Alcance
 
-## URLs de producción
-- **Backend API**: desplegado en Render
-- **Frontend**: https://e-meet-frontend-nine.vercel.app/
+### Incluye:
+- Autenticación real con Supabase Auth (email, Google, Apple).
+- Feed de swipe con lugares reales de Google Places.
+- Filtros por tipo de lugar y distancia.
+- Sistema de likes y guardados persistidos en Supabase.
+- Chat comunitario en tiempo real.
+- Panel de administración con KPIs y gestión.
+- Panel de locatario para creación de eventos.
+- Middleware de protección de rutas por rol.
+- Documentación académica completa.
+
+### No incluye:
+- Sistema de pagos o tickets.
+- Notificaciones push nativas.
+- PWA instalable.
+- Recuperación de contraseña (pendiente).
+- Pruebas automatizadas (pendiente).
+
+---
+
+## 9. Restricciones
+
+| Restricción | Detalle |
+|---|---|
+| **Tecnológica** | El frontend debe usar Next.js 14 App Router con TypeScript estricto |
+| **Tiempo** | El proyecto debe estar listo para entrega académica en el plazo del curso |
+| **Recursos** | Equipo de 3 personas con dedicación académica (no tiempo completo) |
+| **Infraestructura** | Depende de servicios externos: Supabase (plan gratuito o pagado) y Google Maps (con cuota) |
+| **Seguridad** | Credenciales y API keys no deben subirse al repositorio |
+
+---
+
+## 10. Supuestos
+
+| Supuesto | Descripción |
+|---|---|
+| El backend `eMeet_Backend_Supabase` está o estará disponible | El frontend depende de su URL y endpoints |
+| Supabase está configurado en el proyecto ksghpwonmnxmbhmfpaog | Confirmado por la URL del proyecto |
+| Google Maps API key con cuota suficiente | Necesaria para el feed de lugares |
+| Los integrantes tienen acceso al repositorio y al dashboard de Supabase | Requerido para configurar variables de entorno |
+
+---
+
+## 11. Riesgos
+
+| Riesgo | Probabilidad | Impacto | Mitigación |
+|---|---|---|---|
+| Backend no disponible en tiempo de pruebas | Media | Alto | Usar modo local (localStorage) como fallback |
+| Cuota de Google Maps API agotada | Media | Alto | Implementar caché en BFF, limitar llamadas |
+| Pérdida de datos en Supabase | Baja | Alto | Configurar backups automáticos |
+| Conflictos en ramas de Git | Media | Medio | Estrategia de ramas clara (ver Estrategia-de-ramas.md) |
+| Sin pruebas automatizadas | Alta | Medio | Pruebas manuales documentadas antes de entrega |
+
+---
+
+## 12. Roles del Equipo
+
+| Rol | Responsabilidades |
+|---|---|
+| **Desarrollador Full-Stack** | Implementar features del frontend y la integración con el backend |
+| **Desarrollador Frontend** | Componentes UI, estilos Tailwind, animaciones Framer Motion |
+| **Líder técnico** | Arquitectura del sistema, decisiones técnicas, revisión de código |
+| **Integrador backend** | Conexión con `eMeet_Backend_Supabase`, Route Handlers, autenticación |
+
+---
+
+## 13. Entregables
+
+| Entregable | Descripción | Estado |
+|---|---|---|
+| Repositorio `eMeet_frontend` | Código fuente completo del frontend | ✅ En producción |
+| Repositorio `eMeet_Backend_Supabase` | Backend completo | 🔄 En progreso |
+| Proyecto Supabase configurado | Base de datos, auth y realtime operativos | 🔄 En progreso |
+| Documentación académica | `/Documentacion`, `/Producto`, `/Gestion` | ✅ Entregada en este PR |
+| Pull Request hacia `main`/`dev` | PR con toda la documentación | ⏳ Pendiente |
+| Informe académico impreso o digital | Archivo `Informe.md` exportado a PDF | ⏳ Pendiente |
