@@ -79,12 +79,17 @@ async function ensureWallet(locatarioId: string) {
 }
 
 async function creditTokens(orderId: string) {
+  console.log('[creditTokens] Calling RPC credit_tokens_for_paid_order for order:', orderId)
   const { error: rpcError } = await serviceSupabase.rpc('credit_tokens_for_paid_order', {
     p_order_id: orderId,
   })
 
-  if (rpcError) throw rpcError
+  if (rpcError) {
+    console.error('[creditTokens] RPC error:', { code: rpcError.code, message: rpcError.message, details: rpcError.details })
+    throw rpcError
+  }
 
+  console.log('[creditTokens] RPC success, fetching order:', orderId)
   const { data: order, error: orderError } = await serviceSupabase
     .from('payment_orders')
     .select('*')
@@ -92,6 +97,7 @@ async function creditTokens(orderId: string) {
     .single()
 
   if (orderError) throw orderError
+  console.log('[creditTokens] Order status after credit:', order.status, '| tokens:', order.token_amount)
   return order
 }
 
@@ -197,8 +203,6 @@ async function createTransbankCheckout(order: {
     ? 'https://webpay3g.transbank.cl'
     : 'https://webpay3gint.transbank.cl'
 
-  const orderReference = buildTransbankOrderReference(order.id)
-
   const response = await fetch(`${host}/rswebpaytransaction/api/webpay/v1.2/transactions`, {
     method: 'POST',
     headers: {
@@ -207,8 +211,8 @@ async function createTransbankCheckout(order: {
       'Tbk-Api-Key-Secret': credentials.apiKey,
     },
     body: JSON.stringify({
-      buy_order: orderReference,
-      session_id: orderReference,
+      buy_order: buyOrder,
+      session_id: buyOrder,
       amount: order.amount_clp,
       return_url: `${normalizeBackendUrl()}/monetization/transbank/return?order=${order.id}`,
     }),
@@ -289,13 +293,18 @@ async function findTransbankOrderByBuyOrder(buyOrder: string) {
 type TransbankOrder = Awaited<ReturnType<typeof findTransbankOrderById>>
 
 async function approveCommittedTransbankOrder(order: TransbankOrder, payload: TransbankCommitPayload) {
+  console.log('[approveTransbank] payload from Transbank:', JSON.stringify(payload))
+  console.log('[approveTransbank] order in DB:', { id: order.id, status: order.status, provider_order_id: order.provider_order_id })
+
   if (!order.provider_order_id || payload.buy_order !== order.provider_order_id) {
+    console.error('[approveTransbank] buy_order mismatch:', { expected: order.provider_order_id, received: payload.buy_order })
     throw new Error('Orden de pago no valida.')
   }
 
   if (order.status === 'paid') return order
 
   if (payload.status !== 'AUTHORIZED' || payload.response_code !== 0) {
+    console.error('[approveTransbank] Payment not authorized:', { status: payload.status, response_code: payload.response_code })
     await serviceSupabase.from('payment_orders').update({
       status: 'failed',
       raw_provider_response: payload,
@@ -444,7 +453,12 @@ async function handleTransbankReturn(req: Request, res: Response) {
   try {
     const paidOrder = await approveTransbankReturn(orderId, tokenWs)
     return res.redirect(`${normalizeBaseUrl()}/locatario?payment=transbank_success&order=${paidOrder.id}`)
-  } catch {
+  } catch (err) {
+    console.error('[Transbank] approveTransbankReturn failed:', {
+      orderId,
+      tokenWs,
+      error: err instanceof Error ? err.message : err,
+    })
     return res.redirect(
       `${normalizeBaseUrl()}/locatario?payment=transbank_failed${orderId ? `&order=${orderId}` : ''}`,
     )
@@ -738,15 +752,91 @@ router.post('/qr/validate', async (req, res) => {
   }
 })
 
+// ─── Cupones ──────────────────────────────────────────────────────────────────
 
-// GET /coupons - Retorna array vacío temporalmente para mitigar error 404 en el frontend
 router.get('/coupons', withAuth, async (req, res) => {
   try {
-    return res.status(200).json({ coupons: [] });
-  } catch (error) {
-    console.error("Error al obtener cupones:", error);
-    return badRequest(res, "No se pudieron obtener los cupones");
+    const { data: coupons, error } = await serviceSupabase
+      .from('coupons')
+      .select('*, campaign:promotion_campaigns!inner(id, type, event_id, locatario_id, status, starts_at, ends_at)')
+      .eq('promotion_campaigns.locatario_id', req.authUser!.id)
+      .order('created_at', { ascending: false })
+
+    if (error) return serverError(res, 'No se pudieron cargar los cupones.')
+    return res.json({ coupons: coupons ?? [] })
+  } catch {
+    return serverError(res, 'No se pudieron cargar los cupones.')
   }
-});
+})
+
+router.post('/coupons', withAuth, async (req, res) => {
+  const { eventId, durationDays = 1 } = req.body as { eventId?: string; durationDays?: number }
+
+  if (!eventId) return badRequest(res, 'Se requiere eventId.')
+
+  try {
+    const { data: event, error: eventError } = await serviceSupabase
+      .from('locatario_events')
+      .select('id, creator_id, title')
+      .eq('id', eventId)
+      .eq('creator_id', req.authUser!.id)
+      .single()
+
+    if (eventError || !event) return badRequest(res, 'No puedes crear un cupon para este evento.')
+
+    await ensureWallet(req.authUser!.id)
+    const tokenCost = PROMOTION_COSTS['coupon'] * durationDays
+
+    const startsAt = new Date()
+    const endsAt = new Date(startsAt.getTime() + durationDays * 24 * 60 * 60 * 1000)
+
+    const { data: campaignId, error: consumeError } = await serviceSupabase.rpc('consume_tokens_for_campaign', {
+      p_locatario_id: req.authUser!.id,
+      p_event_id: event.id,
+      p_type: 'coupon',
+      p_token_cost: tokenCost,
+      p_starts_at: startsAt.toISOString(),
+      p_ends_at: endsAt.toISOString(),
+    })
+
+    if (consumeError) {
+      return badRequest(
+        res,
+        consumeError.message === 'insufficient_balance'
+          ? 'Saldo insuficiente para crear el cupon.'
+          : 'No se pudo crear la campana de cupon.',
+      )
+    }
+
+    const { data: campaign, error: campaignError } = await serviceSupabase
+      .from('promotion_campaigns')
+      .select('*')
+      .eq('id', campaignId)
+      .single()
+
+    if (campaignError || !campaign) return serverError(res, 'No se pudo cargar la campana creada.')
+
+    const qrToken = randomUUID().replace(/-/g, '')
+    const { data: coupon, error: couponError } = await serviceSupabase
+      .from('coupons')
+      .insert({
+        campaign_id: campaign.id,
+        title: `Beneficio - ${event.title}`,
+        description: 'Cupón promocional del evento.',
+        qr_token: qrToken,
+        status: 'active',
+        expires_at: endsAt.toISOString(),
+      })
+      .select('*')
+      .single()
+
+    if (couponError || !coupon) return serverError(res, 'No se pudo crear el cupon.')
+
+    const wallet = await ensureWallet(req.authUser!.id)
+    return res.status(201).json({ campaign, coupon, wallet, event })
+  } catch {
+    return serverError(res, 'No se pudo crear el cupon.')
+  }
+})
 
 export default router

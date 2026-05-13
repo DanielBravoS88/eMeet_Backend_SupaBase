@@ -4,24 +4,11 @@
 
 ## 1. Tipo de Arquitectura
 
-El sistema eMeet adopta una arquitectura de **tres capas sin BFF**:
+El sistema eMeet adopta una arquitectura de **tres capas con BFF (Backend For Frontend)**, combinando elementos de arquitectura orientada a microservicios lógicos:
 
 - **Capa de Presentación**: frontend Next.js 14 App Router con componentes React.
-- **Capa de Lógica de Negocio principal**: API REST separada en `eMeet_Backend_Supabase` (Express + TypeScript), donde vive la lógica de negocio y validaciones.
-- **Capa de Datos**: Supabase (Auth, PostgreSQL, Realtime y Storage), consumida desde backend y frontend según el caso de uso.
-
-### 1.1 ¿Por qué trabajamos con esta infraestructura?
-
-Esta infraestructura se adoptó por razones prácticas de MVP y escalabilidad incremental:
-
-1. **Separación de responsabilidades**: la experiencia de usuario se resuelve en Next.js y la lógica de negocio se centraliza en una API mantenible.
-2. **Evolución progresiva**: permite migrar módulos mock/local a backend real sin reescribir toda la aplicación.
-3. **Seguridad**: las reglas sensibles, validaciones de permisos y llamadas a servicios externos se concentran en servidor.
-4. **Escalabilidad operativa**: frontend y backend pueden desplegarse y escalarse de forma independiente.
-5. **Compatibilidad con Supabase**: se aprovecha Auth/DB/Realtime sin forzar un acoplamiento total a un único runtime.
-6. **Velocidad de desarrollo del equipo**: habilita entregas iterativas para funcionalidades de usuario, locatario y administración.
-
-> Decisión de arquitectura: el proyecto **no** adoptará patrón Backend For Frontend. El frontend consumirá la API backend como capa principal de negocio.
+- **Capa de Lógica de Negocio / BFF**: Route Handlers y Server Actions dentro de Next.js, que actúan como intermediarios seguros entre el frontend y los servicios externos.
+- **Capa de Datos**: Supabase PostgreSQL, gestionada en parte directamente por el frontend (cliente Supabase) y en parte por el backend `eMeet_Backend_Supabase`.
 
 ---
 
@@ -41,18 +28,9 @@ Esta infraestructura se adoptó por razones prácticas de MVP y escalabilidad in
 
 ### 2.2 Backend — `eMeet_Backend_Supabase`
 
-Backend API REST implementado con Express + TypeScript, consumido por el frontend mediante `NEXT_PUBLIC_BACKEND_URL`.
+> ⏳ **Pendiente por validar**: El repositorio `eMeet_Backend_Supabase` no estuvo disponible para análisis directo. La siguiente información se infiere desde las llamadas del frontend.
 
-Responsabilidades confirmadas:
-
-- autenticación y sesión (`/auth`);
-- perfil de usuario (`/profile`);
-- acciones de eventos (`/events`);
-- chat comunitario (`/chat`);
-- lugares externos y normalización (`/places`);
-- módulos administrativos (`/admin`).
-
-Grupos de endpoints detectados:
+El backend expone endpoints REST que son consumidos por el frontend a través de la variable de entorno `NEXT_PUBLIC_BACKEND_URL`. Se identificaron los siguientes grupos de endpoints:
 
 | Grupo | Endpoints detectados |
 |---|---|
@@ -60,9 +38,8 @@ Grupos de endpoints detectados:
 | Perfil | `GET /profile`, `PATCH /profile` |
 | Eventos de usuario | `GET /events/liked`, `GET /events/saved` |
 | Chat | `GET /chat/rooms`, `POST /chat/rooms/:id/join`, `GET /chat/rooms/:id/messages`, `POST /chat/rooms/:id/messages`, `POST /chat/rooms/:id/read` |
-| Places | `POST /places/search-nearby`, `GET /places/photo` |
 | Locatario | `GET /events/locatario`, `POST /events/locatario`, `DELETE /events/locatario/:id` |
-| Admin | `GET /admin/stats`, `GET /admin/reports`, `PATCH /admin/reports/:id`, `GET /admin/finance` |
+| Admin | `GET /admin/stats`, `GET /admin/reports`, `PATCH /admin/reports/:id` |
 
 ### 2.3 Supabase (plataforma backend)
 
@@ -102,21 +79,19 @@ La capa de presentación corresponde al repositorio `eMeet_frontend`. Es una apl
 
 ---
 
-## 4. Integración Frontend-Backend
+## 4. Capa de Lógica de Negocio (BFF)
 
-La integración principal se realiza desde el frontend hacia `eMeet_Backend_Supabase` mediante llamadas HTTP autenticadas.
+Los Route Handlers de Next.js (`app/api/`) actúan como una capa BFF que delega las solicitudes al backend externo `eMeet_Backend_Supabase`, añadiendo el encabezado `Authorization` desde la sesión del cliente.
 
-Los Route Handlers de Next.js se consideran opcionales y de soporte para casos puntuales (por ejemplo, callback OAuth), pero no representan una capa BFF ni concentran lógica de dominio.
-
-### Endpoints e integraciones detectadas en frontend:
+### Route Handlers detectados:
 
 ```
 app/api/
   admin/
-    stats/route.ts          ← Integración con GET /admin/stats
-    reports/route.ts        ← Integración con GET/POST /admin/reports
-    reports/[id]/route.ts   ← Integración con PATCH /admin/reports/:id
-    finance/route.ts        ← Integración con GET /admin/finance
+    stats/route.ts          ← GET /admin/stats
+    reports/route.ts        ← GET/POST /admin/reports
+    reports/[id]/route.ts   ← PATCH /admin/reports/:id
+    finance/route.ts        ← GET /admin/finance
   auth/
     callback/route.ts       ← Callback OAuth de Supabase
 ```
@@ -245,9 +220,7 @@ Las siguientes variables de entorno fueron identificadas directamente en el cód
 ```
 [NearbyPlacesContext] → navigator.geolocation → userLocation
 → useJsApiLoader (Google Maps JS API)
-→ fetchNearby(bounds, placeTypes) → PlacesService
-→ backend /places/search-nearby
-→ Google Places API
+→ fetchNearby(bounds, placeTypes) → PlacesService → Google Places API
 → places[] → placeToEvent() (adaptador) → SwipeCard[]
 → [Usuario] swipe right/left → excludePlace / joinRoom
 ```
@@ -287,15 +260,15 @@ flowchart TD
         direction TB
         APP[App Router / Páginas]
         CTX[Contextos: Auth · Chat · NearbyPlaces · LocatarioEvents]
-      APIINT[Integraciones API — app/api y servicios]
+        BFF[Route Handlers BFF — app/api/]
         MW[Middleware de sesión y roles]
     end
 
     APP --> CTX
-    APP --> APIINT
+    APP --> BFF
     MW -->|Valida sesión| SA
 
-    APIINT -->|Bearer JWT| BACK
+    BFF -->|Bearer JWT| BACK
     CTX -->|Bearer JWT| BACK
     CTX -->|anon key| SA
 
@@ -328,8 +301,9 @@ flowchart TD
 
 | Elemento | Estado |
 |---|---|
+| Estructura interna de `eMeet_Backend_Supabase` | ⏳ Pendiente |
 | Configuración de RLS en Supabase | ⏳ Pendiente |
-| Cobertura de pruebas E2E integradas frontend-backend | ⏳ Pendiente |
+| ORM utilizado en el backend (Prisma u otro) | ⏳ Pendiente |
 | Esquema SQL completo (migraciones) | ⏳ Pendiente |
 | URL pública de producción del sistema | ⏳ Pendiente |
 | Configuración de CI/CD del backend | ⏳ Pendiente |

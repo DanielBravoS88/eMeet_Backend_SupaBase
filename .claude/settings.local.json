@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"C:\\\\Users\\\\franc\\\\OneDrive\\\\Escritorio\\\\eMeet_frontend\\\\app\\\\auth\\\\forgot-password\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\franc\\\\OneDrive\\\\Escritorio\\\\eMeet_frontend\\\\app\\\\auth\\\\reset-password\")"
+    ]
+  }
+}
