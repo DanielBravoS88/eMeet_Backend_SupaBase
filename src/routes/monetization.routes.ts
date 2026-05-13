@@ -203,8 +203,6 @@ async function createTransbankCheckout(order: {
     ? 'https://webpay3g.transbank.cl'
     : 'https://webpay3gint.transbank.cl'
 
-  const orderReference = buildTransbankOrderReference(order.id)
-
   const response = await fetch(`${host}/rswebpaytransaction/api/webpay/v1.2/transactions`, {
     method: 'POST',
     headers: {
@@ -213,8 +211,8 @@ async function createTransbankCheckout(order: {
       'Tbk-Api-Key-Secret': credentials.apiKey,
     },
     body: JSON.stringify({
-      buy_order: orderReference,
-      session_id: orderReference,
+      buy_order: buyOrder,
+      session_id: buyOrder,
       amount: order.amount_clp,
       return_url: `${normalizeBackendUrl()}/monetization/transbank/return?order=${order.id}`,
     }),
