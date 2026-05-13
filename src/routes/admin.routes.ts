@@ -61,6 +61,7 @@ router.get('/stats', withAuth, async (req, res) => {
     recentProfilesResult,
     recentEventsResult,
     recentCommunitiesResult,
+    gmvResult,
   ] = await Promise.all([
     supabase.from('profiles').select('id', { count: 'exact', head: true }),
     supabase.from('locatario_events').select('id', { count: 'exact', head: true }),
@@ -80,6 +81,7 @@ router.get('/stats', withAuth, async (req, res) => {
       .select('id, event_title, created_at')
       .order('created_at', { ascending: false })
       .limit(6),
+    supabase.from('transactions').select('amount').eq('status', 'completado'),
   ])
 
   if (
@@ -97,6 +99,57 @@ router.get('/stats', withAuth, async (req, res) => {
     return serverError(res, 'No se pudieron obtener las estadísticas de administración.')
   }
 
+  const gmvTotal = (gmvResult.data ?? []).reduce(
+    (sum, tx) => sum + (typeof tx.amount === 'number' ? tx.amount : 0),
+    0,
+  )
+
+  // Distribución de categorías — no bloquea si falla
+  const [allCategoriesResult, ticketsResult] = await Promise.all([
+    supabase.from('locatario_events').select('category'),
+    supabase
+      .from('transactions')
+      .select('created_at')
+      .eq('type', 'ticket')
+      .eq('status', 'completado')
+      .gte('created_at', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString())
+      .order('created_at', { ascending: true }),
+  ])
+
+  const categoryRows = allCategoriesResult.data ?? []
+  const catCountMap: Record<string, number> = {}
+  for (const row of categoryRows) {
+    const cat = (row as { category: string }).category
+    if (cat) catCountMap[cat] = (catCountMap[cat] ?? 0) + 1
+  }
+  const totalCats = categoryRows.length
+  const categoryStats = Object.entries(catCountMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({
+      name,
+      count,
+      percentage: totalCats > 0 ? Math.round((count / totalCats) * 100) : 0,
+    }))
+
+  const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+  const now = new Date()
+  const last6Months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
+    return { label: MONTH_LABELS[d.getMonth()], year: d.getFullYear(), month: d.getMonth() }
+  })
+
+  const ticketRows = (ticketsResult.data ?? []) as { created_at: string }[]
+  const ticketCountMap = new Map<string, number>()
+  for (const tx of ticketRows) {
+    const d = new Date(tx.created_at)
+    const key = `${d.getFullYear()}-${d.getMonth()}`
+    ticketCountMap.set(key, (ticketCountMap.get(key) ?? 0) + 1)
+  }
+  const monthlyTickets = last6Months.map(({ label, year, month }) => ({
+    month: label,
+    tickets: ticketCountMap.get(`${year}-${month}`) ?? 0,
+  }))
+
   return res.json({
     kpis: {
       totalProfiles: profilesCountResult.count ?? 0,
@@ -107,10 +160,13 @@ router.get('/stats', withAuth, async (req, res) => {
       totalSaves: savesCountResult.count ?? 0,
       totalMessages: messagesCountResult.count ?? 0,
       reportsPending: reportsPendingCountResult.count ?? 0,
+      gmv: gmvTotal,
     },
     recentProfiles: recentProfilesResult.data ?? [],
     recentEvents: recentEventsResult.data ?? [],
     recentCommunities: recentCommunitiesResult.data ?? [],
+    categoryStats,
+    monthlyTickets,
   })
 })
 

@@ -20,6 +20,7 @@ const allowedOrigins = new Set(
     ...env.FRONTEND_ORIGIN.split(','),
     'http://localhost:3000',
     'http://localhost:3001',
+    'http://localhost:3008',
   ]
     .map((origin) => origin.trim())
     .filter(Boolean),
