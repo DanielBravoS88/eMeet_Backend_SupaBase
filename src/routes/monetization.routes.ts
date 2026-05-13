@@ -738,4 +738,91 @@ router.post('/qr/validate', async (req, res) => {
   }
 })
 
+// ─── Cupones ──────────────────────────────────────────────────────────────────
+
+router.get('/coupons', withAuth, async (req, res) => {
+  try {
+    const { data: coupons, error } = await serviceSupabase
+      .from('coupons')
+      .select('*, campaign:promotion_campaigns!inner(id, type, event_id, locatario_id, status, starts_at, ends_at)')
+      .eq('promotion_campaigns.locatario_id', req.authUser!.id)
+      .order('created_at', { ascending: false })
+
+    if (error) return serverError(res, 'No se pudieron cargar los cupones.')
+    return res.json({ coupons: coupons ?? [] })
+  } catch {
+    return serverError(res, 'No se pudieron cargar los cupones.')
+  }
+})
+
+router.post('/coupons', withAuth, async (req, res) => {
+  const { eventId, durationDays = 1 } = req.body as { eventId?: string; durationDays?: number }
+
+  if (!eventId) return badRequest(res, 'Se requiere eventId.')
+
+  try {
+    const { data: event, error: eventError } = await serviceSupabase
+      .from('locatario_events')
+      .select('id, creator_id, title')
+      .eq('id', eventId)
+      .eq('creator_id', req.authUser!.id)
+      .single()
+
+    if (eventError || !event) return badRequest(res, 'No puedes crear un cupon para este evento.')
+
+    await ensureWallet(req.authUser!.id)
+    const tokenCost = PROMOTION_COSTS['coupon'] * durationDays
+
+    const startsAt = new Date()
+    const endsAt = new Date(startsAt.getTime() + durationDays * 24 * 60 * 60 * 1000)
+
+    const { data: campaignId, error: consumeError } = await serviceSupabase.rpc('consume_tokens_for_campaign', {
+      p_locatario_id: req.authUser!.id,
+      p_event_id: event.id,
+      p_type: 'coupon',
+      p_token_cost: tokenCost,
+      p_starts_at: startsAt.toISOString(),
+      p_ends_at: endsAt.toISOString(),
+    })
+
+    if (consumeError) {
+      return badRequest(
+        res,
+        consumeError.message === 'insufficient_balance'
+          ? 'Saldo insuficiente para crear el cupon.'
+          : 'No se pudo crear la campana de cupon.',
+      )
+    }
+
+    const { data: campaign, error: campaignError } = await serviceSupabase
+      .from('promotion_campaigns')
+      .select('*')
+      .eq('id', campaignId)
+      .single()
+
+    if (campaignError || !campaign) return serverError(res, 'No se pudo cargar la campana creada.')
+
+    const qrToken = randomUUID().replace(/-/g, '')
+    const { data: coupon, error: couponError } = await serviceSupabase
+      .from('coupons')
+      .insert({
+        campaign_id: campaign.id,
+        title: `Beneficio - ${event.title}`,
+        description: 'Cupón promocional del evento.',
+        qr_token: qrToken,
+        status: 'active',
+        expires_at: endsAt.toISOString(),
+      })
+      .select('*')
+      .single()
+
+    if (couponError || !coupon) return serverError(res, 'No se pudo crear el cupon.')
+
+    const wallet = await ensureWallet(req.authUser!.id)
+    return res.status(201).json({ campaign, coupon, wallet, event })
+  } catch {
+    return serverError(res, 'No se pudo crear el cupon.')
+  }
+})
+
 export default router
