@@ -14,8 +14,11 @@ create table if not exists public.locatario_events (
   address        text        not null default '',
   price          numeric,
   image_url      text,
+  video_url      text,
   organizer_name text        not null default '',
   organizer_avatar text,
+  lat            double precision,
+  lng            double precision,
   created_at     timestamptz not null default now()
 );
 

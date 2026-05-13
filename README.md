@@ -51,6 +51,8 @@ Authorization: Bearer <access_token>
 - `POST /auth/register`
 - `POST /auth/logout`
 - `GET /auth/session`
+- `POST /auth/forgot-password`
+- `POST /auth/reset-password`
 
 ### Perfil
 - `GET /profile`
@@ -79,3 +81,23 @@ Authorization: Bearer <access_token>
 
 ## Estado de salud
 - `GET /health`
+
+---
+
+## Estructura académica / entrega
+
+Este repositorio incluye documentación organizada para evaluación académica:
+
+| Carpeta | Descripción |
+|---------|-------------|
+| [`Documentacion/`](Documentacion/) | Informe técnico, UML, MER, Wireframes, Gantt y Plan QA |
+| [`Producto/`](Producto/) | Descripción del producto, estructura del código y dependencias |
+| [`Gestion/`](Gestion/) | Integrantes, definición del proyecto, estrategia de ramas, infraestructura cloud y respaldo de BD |
+
+### Repositorio frontend
+- https://github.com/DanielBravoS88/eMeet_frontend
+
+### Despliegues
+- **Backend**: Render (rama `main`)
+- **Frontend**: https://e-meet-frontend-nine.vercel.app/
+- **Base de datos**: Supabase (PostgreSQL)
