@@ -444,7 +444,12 @@ async function handleTransbankReturn(req: Request, res: Response) {
   try {
     const paidOrder = await approveTransbankReturn(orderId, tokenWs)
     return res.redirect(`${normalizeBaseUrl()}/locatario?payment=transbank_success&order=${paidOrder.id}`)
-  } catch {
+  } catch (err) {
+    console.error('[Transbank] approveTransbankReturn failed:', {
+      orderId,
+      tokenWs,
+      error: err instanceof Error ? err.message : err,
+    })
     return res.redirect(
       `${normalizeBaseUrl()}/locatario?payment=transbank_failed${orderId ? `&order=${orderId}` : ''}`,
     )
