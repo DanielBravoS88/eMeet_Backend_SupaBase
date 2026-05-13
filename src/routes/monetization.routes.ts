@@ -79,12 +79,17 @@ async function ensureWallet(locatarioId: string) {
 }
 
 async function creditTokens(orderId: string) {
+  console.log('[creditTokens] Calling RPC credit_tokens_for_paid_order for order:', orderId)
   const { error: rpcError } = await serviceSupabase.rpc('credit_tokens_for_paid_order', {
     p_order_id: orderId,
   })
 
-  if (rpcError) throw rpcError
+  if (rpcError) {
+    console.error('[creditTokens] RPC error:', { code: rpcError.code, message: rpcError.message, details: rpcError.details })
+    throw rpcError
+  }
 
+  console.log('[creditTokens] RPC success, fetching order:', orderId)
   const { data: order, error: orderError } = await serviceSupabase
     .from('payment_orders')
     .select('*')
@@ -92,6 +97,7 @@ async function creditTokens(orderId: string) {
     .single()
 
   if (orderError) throw orderError
+  console.log('[creditTokens] Order status after credit:', order.status, '| tokens:', order.token_amount)
   return order
 }
 
@@ -289,13 +295,18 @@ async function findTransbankOrderByBuyOrder(buyOrder: string) {
 type TransbankOrder = Awaited<ReturnType<typeof findTransbankOrderById>>
 
 async function approveCommittedTransbankOrder(order: TransbankOrder, payload: TransbankCommitPayload) {
+  console.log('[approveTransbank] payload from Transbank:', JSON.stringify(payload))
+  console.log('[approveTransbank] order in DB:', { id: order.id, status: order.status, provider_order_id: order.provider_order_id })
+
   if (!order.provider_order_id || payload.buy_order !== order.provider_order_id) {
+    console.error('[approveTransbank] buy_order mismatch:', { expected: order.provider_order_id, received: payload.buy_order })
     throw new Error('Orden de pago no valida.')
   }
 
   if (order.status === 'paid') return order
 
   if (payload.status !== 'AUTHORIZED' || payload.response_code !== 0) {
+    console.error('[approveTransbank] Payment not authorized:', { status: payload.status, response_code: payload.response_code })
     await serviceSupabase.from('payment_orders').update({
       status: 'failed',
       raw_provider_response: payload,
