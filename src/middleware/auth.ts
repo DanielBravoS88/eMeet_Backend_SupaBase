@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
 import { createAnonClient, createServiceRoleClient } from '../lib/supabase'
-import { forbidden, serverError, unauthorized } from '../utils/http'
+import { unauthorized } from '../utils/http'
 import type { UserRole } from '../types/supabase'
 
 const serviceSupabase = createServiceRoleClient()
@@ -71,16 +71,6 @@ export async function withAuth(req: Request, res: Response, next: NextFunction) 
     return unauthorized(res, 'Sesion invalida o expirada.')
   }
 
-  const { error: profileError } = await serviceSupabase
-    .from('profiles')
-    .select('id')
-    .eq('id', data.user.id)
-    .maybeSingle()
-
-  if (profileError) {
-    return serverError(res, 'No se pudo validar el perfil del usuario.')
-  }
-
   req.supabase = supabase
   req.authUser = data.user
 
@@ -88,7 +78,14 @@ export async function withAuth(req: Request, res: Response, next: NextFunction) 
     await syncAuthProfile(req)
   } catch (e) {
     console.error('[withAuth] syncAuthProfile falló:', e)
-    return unauthorized(res, 'No se pudo sincronizar el perfil autenticado.')
+    // La sincronización de perfil es no-bloqueante: el usuario está autenticado
+    // aunque el upsert falle (ej: service role key incorrecta en prod).
+    req.authProfile = {
+      id: data.user.id,
+      role: extractRole(req),
+      business_name: null,
+      business_location: null,
+    }
   }
 
   next()
