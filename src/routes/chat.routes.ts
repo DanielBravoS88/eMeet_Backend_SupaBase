@@ -160,10 +160,11 @@ router.post('/rooms/:id/join', async (req, res) => {
     return serverError(res, 'No se pudo crear la sala.')
   }
 
+  const joinedAt = new Date().toISOString()
   const { error: memberError } = await serviceSupabase
     .from('room_members')
     .upsert(
-      { room_id: id, user_id: req.authUser!.id },
+      { room_id: id, user_id: req.authUser!.id, joined_at: joinedAt, last_read_at: joinedAt },
       { onConflict: 'room_id,user_id' },
     )
 

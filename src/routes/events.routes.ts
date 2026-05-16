@@ -103,13 +103,14 @@ router.post('/like', async (req, res) => {
   }
 
   // Add the liking user as member
-  const membersToUpsert: { room_id: string; user_id: string }[] = [
-    { room_id: eventId, user_id: req.authUser!.id },
+  const now = new Date().toISOString()
+  const membersToUpsert: { room_id: string; user_id: string; joined_at: string; last_read_at: string }[] = [
+    { room_id: eventId, user_id: req.authUser!.id, joined_at: now, last_read_at: now },
   ]
 
   // Also add the locatario creator so they always belong to their event chat
   if (creatorId && creatorId !== req.authUser!.id) {
-    membersToUpsert.push({ room_id: eventId, user_id: creatorId })
+    membersToUpsert.push({ room_id: eventId, user_id: creatorId, joined_at: now, last_read_at: now })
   }
 
   const { error: memberError } = await serviceSupabase
