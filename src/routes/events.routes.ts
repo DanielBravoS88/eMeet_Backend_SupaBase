@@ -49,49 +49,43 @@ router.post('/like', async (req, res) => {
 
   const { error: likeError } = await req.supabase!
     .from('user_events')
-    .upsert(
-      {
-        user_id: req.authUser!.id,
-        event_id: eventId,
-        event_title: eventTitle,
-        event_image_url: eventImageUrl ?? null,
-        event_address: eventAddress ?? null,
-        action: 'like',
-      },
-      { onConflict: 'user_id,event_id,action' },
-    )
+    .insert({
+      user_id: req.authUser!.id,
+      event_id: eventId,
+      event_title: eventTitle,
+      event_image_url: eventImageUrl ?? null,
+      event_address: eventAddress ?? null,
+      action: 'like',
+    })
 
-  if (likeError) {
+  // 23505 = unique_violation: el like ya existía, no es error real
+  if (likeError && likeError.code !== '23505') {
     return serverError(res, 'No se pudo registrar el like.')
   }
 
   const { error: roomError } = await req.supabase!
     .from('chat_rooms')
-    .upsert(
-      {
-        id: eventId,
-        event_title: eventTitle,
-        event_image_url: eventImageUrl ?? null,
-        event_address: eventAddress ?? null,
-      },
-      { onConflict: 'id' },
-    )
+    .insert({
+      id: eventId,
+      event_title: eventTitle,
+      event_image_url: eventImageUrl ?? null,
+      event_address: eventAddress ?? null,
+    })
 
-  if (roomError) {
+  // 23505 = la sala ya existe, no es error real
+  if (roomError && roomError.code !== '23505') {
     return serverError(res, 'No se pudo crear la sala del evento.')
   }
 
   const { error: memberError } = await req.supabase!
     .from('room_members')
-    .upsert(
-      {
-        room_id: eventId,
-        user_id: req.authUser!.id,
-      },
-      { onConflict: 'room_id,user_id' },
-    )
+    .insert({
+      room_id: eventId,
+      user_id: req.authUser!.id,
+    })
 
-  if (memberError) {
+  // 23505 = el usuario ya es miembro, no es error real
+  if (memberError && memberError.code !== '23505') {
     return serverError(res, 'No se pudo unir al usuario a la sala del evento.')
   }
 

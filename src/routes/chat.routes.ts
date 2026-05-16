@@ -130,31 +130,27 @@ router.post('/rooms/:id/join', async (req, res) => {
 
   const { error: roomError } = await req.supabase!
     .from('chat_rooms')
-    .upsert(
-      {
-        id,
-        event_title: eventTitle,
-        event_image_url: eventImageUrl ?? null,
-        event_address: eventAddress ?? null,
-      },
-      { onConflict: 'id' },
-    )
+    .insert({
+      id,
+      event_title: eventTitle,
+      event_image_url: eventImageUrl ?? null,
+      event_address: eventAddress ?? null,
+    })
 
-  if (roomError) {
+  // 23505 = la sala ya existe, no es error real
+  if (roomError && roomError.code !== '23505') {
     return serverError(res, 'No se pudo crear la sala.')
   }
 
   const { error: memberError } = await req.supabase!
     .from('room_members')
-    .upsert(
-      {
-        room_id: id,
-        user_id: req.authUser!.id,
-      },
-      { onConflict: 'room_id,user_id' },
-    )
+    .insert({
+      room_id: id,
+      user_id: req.authUser!.id,
+    })
 
-  if (memberError) {
+  // 23505 = el usuario ya es miembro, no es error real
+  if (memberError && memberError.code !== '23505') {
     return serverError(res, 'No se pudo unir al chat.')
   }
 
