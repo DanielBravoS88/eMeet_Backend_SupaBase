@@ -1,19 +1,31 @@
 import type { NextFunction, Request, Response } from 'express'
 import { withAuth } from './auth'
 
-const { mockCreateAnonClient, mockServerError, mockUnauthorized } = vi.hoisted(() => ({
-  mockCreateAnonClient: vi.fn(),
-  mockServerError: vi.fn(),
-  mockUnauthorized: vi.fn(),
-}))
+const {
+  mockCreateAnonClient,
+  mockUnauthorized,
+  serviceSupabaseMock,
+} = vi.hoisted(() => {
+  const serviceSupabaseMock = {
+    from: vi.fn().mockReturnValue({
+      upsert: vi.fn().mockResolvedValue({ error: null }),
+    }),
+  }
+  return {
+    mockCreateAnonClient: vi.fn(),
+    mockUnauthorized: vi.fn(),
+    serviceSupabaseMock,
+  }
+})
 
 vi.mock('../lib/supabase', () => ({
   createAnonClient: mockCreateAnonClient,
+  createServiceRoleClient: vi.fn().mockReturnValue(serviceSupabaseMock),
 }))
 
 vi.mock('../utils/http', () => ({
   forbidden: vi.fn(),
-  serverError: mockServerError,
+  serverError: vi.fn(),
   unauthorized: mockUnauthorized,
 }))
 
@@ -25,19 +37,20 @@ function createRes() {
   return {} as Response
 }
 
-function createProfileQuery(profile: unknown, error: unknown = null) {
-  return {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    single: vi.fn().mockResolvedValue({ data: profile, error }),
-  }
+const VALID_USER = {
+  id: 'user-1',
+  email: 'test@mail.com',
+  app_metadata: {},
+  user_metadata: { name: 'Test' },
 }
 
 describe('withAuth middleware', () => {
   beforeEach(() => {
     mockCreateAnonClient.mockReset()
-    mockServerError.mockReset()
     mockUnauthorized.mockReset()
+    serviceSupabaseMock.from.mockReturnValue({
+      upsert: vi.fn().mockResolvedValue({ error: null }),
+    })
   })
 
   it('rechaza cuando falta bearer token', async () => {
@@ -70,53 +83,44 @@ describe('withAuth middleware', () => {
     expect(next).not.toHaveBeenCalled()
   })
 
-  it('rechaza cuando no puede validar perfil', async () => {
+  it('continua con perfil mínimo cuando syncAuthProfile falla', async () => {
     const req = createReq({ authorization: 'Bearer token-valido' })
     const res = createRes()
     const next = vi.fn() as unknown as NextFunction
-    const profileQuery = createProfileQuery(null, { message: 'missing profile' })
 
     mockCreateAnonClient.mockReturnValue({
-      auth: {
-        getUser: vi.fn().mockResolvedValue({
-          data: { user: { id: 'user-1', email: 'test@mail.com' } },
-          error: null,
-        }),
-      },
-      from: vi.fn().mockReturnValue(profileQuery),
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: VALID_USER }, error: null }) },
+    })
+    serviceSupabaseMock.from.mockReturnValue({
+      upsert: vi.fn().mockResolvedValue({ error: { message: 'DB unavailable' } }),
     })
 
     await withAuth(req, res, next)
 
-    expect(mockServerError).toHaveBeenCalledWith(res, 'No se pudo validar el perfil del usuario.')
-    expect(next).not.toHaveBeenCalled()
+    expect(next).toHaveBeenCalledTimes(1)
+    expect(mockUnauthorized).not.toHaveBeenCalled()
+    expect((req as unknown as { authProfile: { id: string; role: string } }).authProfile).toMatchObject({
+      id: 'user-1',
+      role: 'user',
+    })
   })
 
   it('continua y adjunta usuario y perfil cuando token es valido', async () => {
     const req = createReq({ authorization: 'Bearer token-valido' })
     const res = createRes()
     const next = vi.fn() as unknown as NextFunction
-    const profile = { id: 'user-1', name: 'Test', role: 'user' }
-    const profileQuery = createProfileQuery(profile)
-    const supabaseMock = {
-      auth: {
-        getUser: vi.fn().mockResolvedValue({
-          data: { user: { id: 'user-1', email: 'test@mail.com' } },
-          error: null,
-        }),
-      },
-      from: vi.fn().mockReturnValue(profileQuery),
-    }
 
+    const supabaseMock = {
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: VALID_USER }, error: null }) },
+    }
     mockCreateAnonClient.mockReturnValue(supabaseMock)
 
     await withAuth(req, res, next)
 
     expect(mockCreateAnonClient).toHaveBeenCalledWith('token-valido')
-    expect(supabaseMock.from).toHaveBeenCalledWith('profiles')
     expect(req.supabase).toBe(supabaseMock)
-    expect(req.authUser).toEqual({ id: 'user-1', email: 'test@mail.com' })
-    expect(req.authProfile).toBe(profile)
+    expect(req.authUser).toEqual(VALID_USER)
+    expect(req.authProfile).toMatchObject({ id: 'user-1', role: 'user' })
     expect(next).toHaveBeenCalledTimes(1)
     expect(mockUnauthorized).not.toHaveBeenCalled()
   })

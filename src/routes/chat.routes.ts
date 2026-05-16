@@ -1,13 +1,19 @@
 import { Router } from 'express'
+import { createServiceRoleClient } from '../lib/supabase'
 import { withAuth } from '../middleware/auth'
-import { badRequest, serverError } from '../utils/http'
+import { badRequest, forbidden, serverError } from '../utils/http'
+import { isMember, cleanupEmptyRoom, purgeExpiredRooms } from '../services/chatService'
 
 const router = Router()
+const serviceSupabase = createServiceRoleClient()
 
 router.use(withAuth)
 
+// ── GET /chat/rooms ───────────────────────────────────────────────────────────
+// Returns all rooms the authenticated user belongs to.
+// Lazily purges expired rooms (event_date < now) before responding.
 router.get('/rooms', async (req, res) => {
-  const { data: memberships, error: memberError } = await req.supabase!
+  const { data: memberships, error: memberError } = await serviceSupabase
     .from('room_members')
     .select('room_id, last_read_at')
     .eq('user_id', req.authUser!.id)
@@ -16,42 +22,47 @@ router.get('/rooms', async (req, res) => {
     return serverError(res, 'No se pudieron cargar las membresías de chat.')
   }
 
-  const roomIds = memberships.map((m) => m.room_id)
+  let roomIds = memberships.map((m) => m.room_id)
   if (roomIds.length === 0) {
     return res.json([])
   }
 
-  const [{ data: rooms, error: roomError }, { data: messages, error: messageError }] = await Promise.all([
-    req.supabase!.from('chat_rooms').select('*').in('id', roomIds),
-    req.supabase!
+  // Lazy expiry: delete rooms whose event_date passed, then exclude them
+  const expiredIds = await purgeExpiredRooms(serviceSupabase)
+  if (expiredIds.length > 0) {
+    roomIds = roomIds.filter((id) => !expiredIds.includes(id))
+  }
+
+  if (roomIds.length === 0) {
+    return res.json([])
+  }
+
+  const [
+    { data: rooms, error: roomError },
+    { data: messages, error: messageError },
+    { data: allMemberships, error: membershipCountError },
+  ] = await Promise.all([
+    serviceSupabase.from('chat_rooms').select('*').in('id', roomIds),
+    serviceSupabase
       .from('chat_messages')
       .select('id, room_id, user_id, text, created_at')
       .in('room_id', roomIds)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(200),
+    serviceSupabase.from('room_members').select('room_id').in('room_id', roomIds),
   ])
 
-  if (roomError || messageError) {
+  if (roomError || messageError || membershipCountError) {
     return serverError(res, 'No se pudieron cargar las salas de chat.')
   }
 
-  const activeParticipantsByRoom = new Map<string, Set<string>>()
-  for (const roomId of roomIds) {
-    activeParticipantsByRoom.set(roomId, new Set([req.authUser!.id]))
-  }
-
-  for (const msg of messages) {
-    const participants = activeParticipantsByRoom.get(msg.room_id) ?? new Set<string>()
-    participants.add(msg.user_id)
-    activeParticipantsByRoom.set(msg.room_id, participants)
-  }
-
-  const memberCountMap = Array.from(activeParticipantsByRoom.entries()).reduce<Record<string, number>>((acc, [roomId, members]) => {
-    acc[roomId] = members.size
+  const memberCountMap = roomIds.reduce<Record<string, number>>((acc, roomId) => {
+    acc[roomId] = (allMemberships ?? []).filter((m) => m.room_id === roomId).length
     return acc
   }, {})
 
   const lastMessageByRoom = new Map<string, (typeof messages)[number]>()
-  messages.forEach((msg) => {
+  ;(messages ?? []).forEach((msg) => {
     if (!lastMessageByRoom.has(msg.room_id)) {
       lastMessageByRoom.set(msg.room_id, msg)
     }
@@ -67,7 +78,7 @@ router.get('/rooms', async (req, res) => {
 
   let lastMessageProfileMap = new Map<string, { id: string; name: string; avatar_url: string | null }>()
   if (lastMessageSenderIds.length > 0) {
-    const { data: profiles, error: profilesError } = await req.supabase!
+    const { data: profiles, error: profilesError } = await serviceSupabase
       .from('profiles')
       .select('id, name, avatar_url')
       .in('id', lastMessageSenderIds)
@@ -79,13 +90,13 @@ router.get('/rooms', async (req, res) => {
     lastMessageProfileMap = new Map(profiles.map((profile) => [profile.id, profile]))
   }
 
-  const result = rooms.map((room) => {
+  const result = (rooms ?? []).map((room) => {
     const lastReadAt = memberships.find((m) => m.room_id === room.id)?.last_read_at
     const lastMessageRow = lastMessageByRoom.get(room.id) ?? null
     const lastMessageSender = lastMessageRow
       ? lastMessageProfileMap.get(lastMessageRow.user_id)
       : null
-    const unreadCount = messages.filter(
+    const unreadCount = (messages ?? []).filter(
       (msg) =>
         msg.room_id === room.id &&
         msg.created_at > (lastReadAt ?? '') &&
@@ -95,9 +106,9 @@ router.get('/rooms', async (req, res) => {
     return {
       id: room.id,
       eventTitle: room.event_title,
-      eventImageUrl: room.event_image_url,
-      eventAddress: room.event_address,
-      memberCount: memberCountMap[room.id] ?? 0,
+      eventImageUrl: room.event_image_url ?? '',
+      eventAddress: room.event_address ?? '',
+      memberCount: memberCountMap[room.id] ?? 1,
       lastMessage: lastMessageRow
         ? {
             id: lastMessageRow.id,
@@ -116,54 +127,64 @@ router.get('/rooms', async (req, res) => {
   return res.json(result)
 })
 
+// ── POST /chat/rooms/:id/join ────────────────────────────────────────────────
+// Idempotent join: creates the room if absent, then upserts membership.
+// Kept for scenarios where a user wants to rejoin or the like flow skipped chat.
 router.post('/rooms/:id/join', async (req, res) => {
   const { id } = req.params
-  const { eventTitle, eventImageUrl, eventAddress } = req.body as {
+  const { eventTitle, eventImageUrl, eventAddress, eventDate } = req.body as {
     eventTitle?: string
     eventImageUrl?: string
     eventAddress?: string
+    eventDate?: string
   }
 
   if (!eventTitle) {
     return badRequest(res, 'eventTitle es obligatorio para crear/unir sala.')
   }
 
-  const now = new Date().toISOString()
-
-  const { error: roomError } = await req.supabase!
+  const { error: roomError } = await serviceSupabase
     .from('chat_rooms')
-    .insert({
-      id,
-      event_title: eventTitle,
-      event_image_url: eventImageUrl ?? null,
-      event_address: eventAddress ?? null,
-      created_at: now,
-    })
+    .upsert(
+      {
+        id,
+        event_title: eventTitle,
+        event_image_url: eventImageUrl ?? null,
+        event_address: eventAddress ?? null,
+        event_date: eventDate ?? null,
+      },
+      { onConflict: 'id' },
+    )
 
-  if (roomError && roomError.code !== '23505') {
+  if (roomError) {
     return serverError(res, 'No se pudo crear la sala.')
   }
 
-  const { error: memberError } = await req.supabase!
+  const { error: memberError } = await serviceSupabase
     .from('room_members')
-    .insert({
-      room_id: id,
-      user_id: req.authUser!.id,
-      joined_at: now,
-      last_read_at: now,
-    })
+    .upsert(
+      { room_id: id, user_id: req.authUser!.id },
+      { onConflict: 'room_id,user_id' },
+    )
 
-  if (memberError && memberError.code !== '23505') {
+  if (memberError) {
     return serverError(res, 'No se pudo unir al chat.')
   }
 
   return res.status(201).json({ ok: true })
 })
 
+// ── GET /chat/rooms/:id/messages ─────────────────────────────────────────────
+// Requires membership.
 router.get('/rooms/:id/messages', async (req, res) => {
   const { id } = req.params
 
-  const { data, error } = await req.supabase!
+  const member = await isMember(serviceSupabase, id, req.authUser!.id)
+  if (!member) {
+    return forbidden(res, 'No eres miembro de esta sala.')
+  }
+
+  const { data, error } = await serviceSupabase
     .from('chat_messages')
     .select('id, room_id, user_id, text, created_at')
     .eq('room_id', id)
@@ -174,11 +195,10 @@ router.get('/rooms/:id/messages', async (req, res) => {
   }
 
   const senderIds = Array.from(new Set(data.map((row) => row.user_id)))
-
   let profileMap = new Map<string, { id: string; name: string; avatar_url: string | null }>()
 
   if (senderIds.length > 0) {
-    const { data: profiles, error: profileError } = await req.supabase!
+    const { data: profiles, error: profileError } = await serviceSupabase
       .from('profiles')
       .select('id, name, avatar_url')
       .in('id', senderIds)
@@ -197,7 +217,7 @@ router.get('/rooms/:id/messages', async (req, res) => {
       roomId: row.room_id,
       senderId: row.user_id,
       senderName: sender?.name ?? 'Usuario',
-      senderAvatar: sender?.avatar_url,
+      senderAvatar: sender?.avatar_url ?? '',
       text: row.text,
       timestamp: row.created_at,
     }
@@ -206,6 +226,8 @@ router.get('/rooms/:id/messages', async (req, res) => {
   return res.json(messages)
 })
 
+// ── POST /chat/rooms/:id/messages ────────────────────────────────────────────
+// Requires membership.
 router.post('/rooms/:id/messages', async (req, res) => {
   const { id } = req.params
   const { text } = req.body as { text?: string }
@@ -214,7 +236,12 @@ router.post('/rooms/:id/messages', async (req, res) => {
     return badRequest(res, 'El mensaje no puede estar vacío.')
   }
 
-  const { data, error } = await req.supabase!
+  const member = await isMember(serviceSupabase, id, req.authUser!.id)
+  if (!member) {
+    return forbidden(res, 'No eres miembro de esta sala.')
+  }
+
+  const { data, error } = await serviceSupabase
     .from('chat_messages')
     .insert({
       room_id: id,
@@ -231,10 +258,13 @@ router.post('/rooms/:id/messages', async (req, res) => {
   return res.status(201).json(data)
 })
 
+// ── POST /chat/rooms/:id/read ─────────────────────────────────────────────────
+// Marks last_read_at for the current user in the room.
+// Silently succeeds even if the user is not a member (idempotent read marker).
 router.post('/rooms/:id/read', async (req, res) => {
   const { id } = req.params
 
-  const { error } = await req.supabase!
+  const { error } = await serviceSupabase
     .from('room_members')
     .update({ last_read_at: new Date().toISOString() })
     .eq('room_id', id)
@@ -247,21 +277,26 @@ router.post('/rooms/:id/read', async (req, res) => {
   return res.status(204).send()
 })
 
+// ── GET /chat/rooms/:id/unread ────────────────────────────────────────────────
 router.get('/rooms/:id/unread', async (req, res) => {
   const { id } = req.params
 
-  const { data: membership, error: memberError } = await req.supabase!
+  const { data: membership, error: memberError } = await serviceSupabase
     .from('room_members')
     .select('last_read_at')
     .eq('room_id', id)
     .eq('user_id', req.authUser!.id)
-    .single()
+    .maybeSingle()
 
   if (memberError) {
     return serverError(res, 'No se pudo obtener estado de lectura.')
   }
 
-  const { data: messages, error: unreadError } = await req.supabase!
+  if (!membership) {
+    return forbidden(res, 'No eres miembro de esta sala.')
+  }
+
+  const { data: unreadMessages, error: unreadError } = await serviceSupabase
     .from('chat_messages')
     .select('id')
     .eq('room_id', id)
@@ -272,11 +307,12 @@ router.get('/rooms/:id/unread', async (req, res) => {
     return serverError(res, 'No se pudo calcular mensajes no leídos.')
   }
 
-  return res.json({ roomId: id, unread: messages.length })
+  return res.json({ roomId: id, unread: (unreadMessages ?? []).length })
 })
 
+// ── GET /chat/unread ──────────────────────────────────────────────────────────
 router.get('/unread', async (req, res) => {
-  const { data: memberships, error: membershipError } = await req.supabase!
+  const { data: memberships, error: membershipError } = await serviceSupabase
     .from('room_members')
     .select('room_id, last_read_at')
     .eq('user_id', req.authUser!.id)
@@ -290,7 +326,7 @@ router.get('/unread', async (req, res) => {
     return res.json([])
   }
 
-  const { data: messages, error: messagesError } = await req.supabase!
+  const { data: messages, error: messagesError } = await serviceSupabase
     .from('chat_messages')
     .select('id, room_id, user_id, created_at')
     .in('room_id', roomIds)
@@ -302,11 +338,41 @@ router.get('/unread', async (req, res) => {
 
   const unreadByRoom = roomIds.reduce<Record<string, number>>((acc, roomId) => {
     const lastRead = memberships.find((m) => m.room_id === roomId)?.last_read_at ?? ''
-    acc[roomId] = messages.filter((msg) => msg.room_id === roomId && msg.created_at > lastRead).length
+    acc[roomId] = (messages ?? []).filter(
+      (msg) => msg.room_id === roomId && msg.created_at > lastRead,
+    ).length
     return acc
   }, {})
 
-  return res.json(Object.entries(unreadByRoom).map(([roomId, unread]) => ({ roomId, unread })))
+  return res.json(
+    Object.entries(unreadByRoom).map(([roomId, unread]) => ({ roomId, unread })),
+  )
+})
+
+// ── DELETE /chat/rooms/:id/leave ──────────────────────────────────────────────
+// Removes the user from the room. Deletes room if no members remain.
+router.delete('/rooms/:id/leave', async (req, res) => {
+  const { id } = req.params
+
+  const member = await isMember(serviceSupabase, id, req.authUser!.id)
+  if (!member) {
+    // Idempotent: already not a member
+    return res.status(204).send()
+  }
+
+  const { error } = await serviceSupabase
+    .from('room_members')
+    .delete()
+    .eq('room_id', id)
+    .eq('user_id', req.authUser!.id)
+
+  if (error) {
+    return serverError(res, 'No se pudo salir del chat.')
+  }
+
+  await cleanupEmptyRoom(serviceSupabase, id)
+
+  return res.status(204).send()
 })
 
 export default router

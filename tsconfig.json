@@ -15,8 +15,6 @@
   "include": ["src/**/*.ts"],
   "exclude": [
     "node_modules",
-    "dist",
-    "src/routes/monetization.routes.ts",
-    "src/schemas/monetization.schema.ts"
+    "dist"
   ]
 }
