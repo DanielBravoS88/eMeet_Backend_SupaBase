@@ -65,7 +65,7 @@ router.post('/like', async (req, res) => {
 
   if (likeError) {
     console.error('[POST /events/like] user_events upsert error:', likeError.code, likeError.message, likeError.details)
-    return serverError(res, 'No se pudo registrar el like.')
+    return res.status(500).json({ error: `[${likeError.code}] ${likeError.message}` })
   }
 
   // Look up authoritative event_date and creator_id from locatario_events.
