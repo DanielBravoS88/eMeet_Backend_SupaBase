@@ -49,7 +49,7 @@ router.post('/like', async (req, res) => {
     return badRequest(res, 'eventId y eventTitle son obligatorios.')
   }
 
-  const { error: likeError } = await serviceSupabase
+  const { error: likeError } = await req.supabase!
     .from('user_events')
     .upsert(
       {
@@ -64,6 +64,7 @@ router.post('/like', async (req, res) => {
     )
 
   if (likeError) {
+    console.error('[POST /events/like] user_events upsert error:', likeError.code, likeError.message, likeError.details)
     return serverError(res, 'No se pudo registrar el like.')
   }
 
