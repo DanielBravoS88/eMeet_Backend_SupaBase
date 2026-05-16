@@ -22,6 +22,13 @@ function parseOptionalNumber(value: unknown) {
 }
 
 router.get('/locatario/public', async (_req, res) => {
+  // Lazy purge: delete past events before responding
+  await serviceSupabase
+    .from('locatario_events')
+    .delete()
+    .not('event_date', 'is', null)
+    .lt('event_date', new Date().toISOString())
+
   const { data, error } = await serviceSupabase
     .from('locatario_events')
     .select('*')
@@ -254,6 +261,7 @@ router.post('/locatario', requireRole('locatario'), async (req, res) => {
     price?: number | null
     image_url?: string | null
     video_url?: string | null
+    audio_preview_url?: string | null
     organizer_name?: string
     organizer_avatar?: string | null
     lat?: number | null
@@ -297,6 +305,7 @@ router.post('/locatario', requireRole('locatario'), async (req, res) => {
       price,
       image_url: body.image_url?.trim() || null,
       video_url: body.video_url?.trim() || null,
+      audio_preview_url: body.audio_preview_url?.trim() || null,
       organizer_name: body.organizer_name ?? '',
       organizer_avatar: body.organizer_avatar ?? null,
       lat,
