@@ -22,6 +22,13 @@ function parseOptionalNumber(value: unknown) {
 }
 
 router.get('/locatario/public', async (_req, res) => {
+  // Lazy purge: delete past events before responding
+  await serviceSupabase
+    .from('locatario_events')
+    .delete()
+    .not('event_date', 'is', null)
+    .lt('event_date', new Date().toISOString())
+
   const { data, error } = await serviceSupabase
     .from('locatario_events')
     .select('*')
@@ -59,13 +66,14 @@ router.post('/like', async (req, res) => {
         event_image_url: eventImageUrl ?? null,
         event_address: eventAddress ?? null,
         action: 'like',
+        created_at: new Date().toISOString(),
       },
       { onConflict: 'user_id,event_id,action' },
     )
 
   if (likeError) {
     console.error('[POST /events/like] user_events upsert error:', likeError.code, likeError.message, likeError.details)
-    return res.status(500).json({ error: `[${likeError.code}] ${likeError.message}` })
+    return serverError(res, 'No se pudo registrar el like.')
   }
 
   // Look up authoritative event_date and creator_id from locatario_events.
@@ -102,13 +110,14 @@ router.post('/like', async (req, res) => {
   }
 
   // Add the liking user as member
-  const membersToUpsert: { room_id: string; user_id: string }[] = [
-    { room_id: eventId, user_id: req.authUser!.id },
+  const now = new Date().toISOString()
+  const membersToUpsert: { room_id: string; user_id: string; joined_at: string; last_read_at: string }[] = [
+    { room_id: eventId, user_id: req.authUser!.id, joined_at: now, last_read_at: now },
   ]
 
   // Also add the locatario creator so they always belong to their event chat
   if (creatorId && creatorId !== req.authUser!.id) {
-    membersToUpsert.push({ room_id: eventId, user_id: creatorId })
+    membersToUpsert.push({ room_id: eventId, user_id: creatorId, joined_at: now, last_read_at: now })
   }
 
   const { error: memberError } = await serviceSupabase
@@ -252,6 +261,7 @@ router.post('/locatario', requireRole('locatario'), async (req, res) => {
     price?: number | null
     image_url?: string | null
     video_url?: string | null
+    audio_preview_url?: string | null
     organizer_name?: string
     organizer_avatar?: string | null
     lat?: number | null
@@ -295,6 +305,7 @@ router.post('/locatario', requireRole('locatario'), async (req, res) => {
       price,
       image_url: body.image_url?.trim() || null,
       video_url: body.video_url?.trim() || null,
+      audio_preview_url: body.audio_preview_url?.trim() || null,
       organizer_name: body.organizer_name ?? '',
       organizer_avatar: body.organizer_avatar ?? null,
       lat,
