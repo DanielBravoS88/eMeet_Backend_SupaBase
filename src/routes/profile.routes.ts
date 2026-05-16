@@ -1,10 +1,12 @@
 import { Router } from 'express'
 import type { Request } from 'express'
+import { createServiceRoleClient } from '../lib/supabase'
 import { withAuth } from '../middleware/auth'
 import { badRequest, serverError } from '../utils/http'
 import type { EventCategory } from '../types/supabase'
 
 const router = Router()
+const serviceSupabase = createServiceRoleClient()
 
 router.use(withAuth)
 
@@ -14,7 +16,7 @@ async function ensureOwnProfile(req: Request) {
     avatar_url?: string | null
   }
 
-  const { data, error } = await req.supabase!
+  const { data, error } = await serviceSupabase
     .from('profiles')
     .select('*')
     .eq('id', req.authUser!.id)
@@ -28,7 +30,7 @@ async function ensureOwnProfile(req: Request) {
     return data
   }
 
-  const { data: createdProfile, error: createError } = await req.supabase!
+  const { data: createdProfile, error: createError } = await serviceSupabase
     .from('profiles')
     .insert({
       id: req.authUser!.id,
@@ -90,7 +92,7 @@ router.patch('/', async (req, res) => {
     return badRequest(res, 'No hay campos para actualizar.')
   }
 
-  const { data, error } = await req.supabase!
+  const { data, error } = await serviceSupabase
     .from('profiles')
     .update(payload)
     .eq('id', req.authUser!.id)
@@ -118,7 +120,7 @@ router.post('/avatar', async (req, res) => {
   const ext = contentType.includes('png') ? 'png' : 'jpg'
   const objectPath = `${req.authUser!.id}/${Date.now()}.${ext}`
 
-  const { error: uploadError } = await req.supabase!.storage
+  const { error: uploadError } = await serviceSupabase.storage
     .from('avatars')
     .upload(objectPath, buffer, {
       contentType,
@@ -129,9 +131,9 @@ router.post('/avatar', async (req, res) => {
     return serverError(res, 'No se pudo subir el avatar.')
   }
 
-  const { data: publicData } = req.supabase!.storage.from('avatars').getPublicUrl(objectPath)
+  const { data: publicData } = serviceSupabase.storage.from('avatars').getPublicUrl(objectPath)
 
-  const { error: updateError } = await req.supabase!
+  const { error: updateError } = await serviceSupabase
     .from('profiles')
     .update({ avatar_url: publicData.publicUrl })
     .eq('id', req.authUser!.id)

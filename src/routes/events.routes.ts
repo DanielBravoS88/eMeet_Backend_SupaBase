@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { createServiceRoleClient } from '../lib/supabase'
 import { requireRole, withAuth } from '../middleware/auth'
 import { badRequest, serverError } from '../utils/http'
+import { cleanupEmptyRoom } from '../services/chatService'
 
 const router = Router()
 const serviceSupabase = createServiceRoleClient()
@@ -36,18 +37,19 @@ router.get('/locatario/public', async (_req, res) => {
 router.use(withAuth)
 
 router.post('/like', async (req, res) => {
-  const { eventId, eventTitle, eventImageUrl, eventAddress } = req.body as {
+  const { eventId, eventTitle, eventImageUrl, eventAddress, eventDate } = req.body as {
     eventId?: string
     eventTitle?: string
     eventImageUrl?: string
     eventAddress?: string
+    eventDate?: string
   }
 
   if (!eventId || !eventTitle) {
     return badRequest(res, 'eventId y eventTitle son obligatorios.')
   }
 
-  const { error: likeError } = await req.supabase!
+  const { error: likeError } = await serviceSupabase
     .from('user_events')
     .upsert(
       {
@@ -65,7 +67,23 @@ router.post('/like', async (req, res) => {
     return serverError(res, 'No se pudo registrar el like.')
   }
 
-  const { error: roomError } = await req.supabase!
+  // Look up authoritative event_date and creator_id from locatario_events.
+  // If not found (e.g. Google Places event), event_date stays null and no creator is added.
+  let resolvedEventDate: string | null = eventDate ?? null
+  let creatorId: string | null = null
+
+  const { data: locatarioEvent } = await serviceSupabase
+    .from('locatario_events')
+    .select('creator_id, event_date')
+    .eq('id', eventId)
+    .maybeSingle()
+
+  if (locatarioEvent) {
+    resolvedEventDate = locatarioEvent.event_date
+    creatorId = locatarioEvent.creator_id
+  }
+
+  const { error: roomError } = await serviceSupabase
     .from('chat_rooms')
     .upsert(
       {
@@ -73,6 +91,7 @@ router.post('/like', async (req, res) => {
         event_title: eventTitle,
         event_image_url: eventImageUrl ?? null,
         event_address: eventAddress ?? null,
+        event_date: resolvedEventDate,
       },
       { onConflict: 'id' },
     )
@@ -81,15 +100,19 @@ router.post('/like', async (req, res) => {
     return serverError(res, 'No se pudo crear la sala del evento.')
   }
 
-  const { error: memberError } = await req.supabase!
+  // Add the liking user as member
+  const membersToUpsert: { room_id: string; user_id: string }[] = [
+    { room_id: eventId, user_id: req.authUser!.id },
+  ]
+
+  // Also add the locatario creator so they always belong to their event chat
+  if (creatorId && creatorId !== req.authUser!.id) {
+    membersToUpsert.push({ room_id: eventId, user_id: creatorId })
+  }
+
+  const { error: memberError } = await serviceSupabase
     .from('room_members')
-    .upsert(
-      {
-        room_id: eventId,
-        user_id: req.authUser!.id,
-      },
-      { onConflict: 'room_id,user_id' },
-    )
+    .upsert(membersToUpsert, { onConflict: 'room_id,user_id' })
 
   if (memberError) {
     return serverError(res, 'No se pudo unir al usuario a la sala del evento.')
@@ -110,7 +133,7 @@ router.post('/save', async (req, res) => {
     return badRequest(res, 'eventId y eventTitle son obligatorios.')
   }
 
-  const { error } = await req.supabase!
+  const { error } = await serviceSupabase
     .from('user_events')
     .upsert(
       {
@@ -134,7 +157,7 @@ router.post('/save', async (req, res) => {
 router.delete('/like/:id', async (req, res) => {
   const { id } = req.params
 
-  const { error } = await req.supabase!
+  const { error } = await serviceSupabase
     .from('user_events')
     .delete()
     .eq('user_id', req.authUser!.id)
@@ -145,13 +168,22 @@ router.delete('/like/:id', async (req, res) => {
     return serverError(res, 'No se pudo eliminar el like.')
   }
 
+  // Leave the event chat when unliking
+  await serviceSupabase
+    .from('room_members')
+    .delete()
+    .eq('room_id', id)
+    .eq('user_id', req.authUser!.id)
+
+  await cleanupEmptyRoom(serviceSupabase, id)
+
   return res.status(204).send()
 })
 
 router.delete('/save/:id', async (req, res) => {
   const { id } = req.params
 
-  const { error } = await req.supabase!
+  const { error } = await serviceSupabase
     .from('user_events')
     .delete()
     .eq('user_id', req.authUser!.id)
@@ -166,7 +198,7 @@ router.delete('/save/:id', async (req, res) => {
 })
 
 router.get('/liked', async (req, res) => {
-  const { data, error } = await req.supabase!
+  const { data, error } = await serviceSupabase
     .from('user_events')
     .select('*')
     .eq('user_id', req.authUser!.id)
@@ -181,7 +213,7 @@ router.get('/liked', async (req, res) => {
 })
 
 router.get('/saved', async (req, res) => {
-  const { data, error } = await req.supabase!
+  const { data, error } = await serviceSupabase
     .from('user_events')
     .select('*')
     .eq('user_id', req.authUser!.id)
@@ -196,7 +228,7 @@ router.get('/saved', async (req, res) => {
 })
 
 router.get('/locatario', requireRole('locatario'), async (req, res) => {
-  const { data, error } = await req.supabase!
+  const { data, error } = await serviceSupabase
     .from('locatario_events')
     .select('*')
     .eq('creator_id', req.authUser!.id)
@@ -250,7 +282,7 @@ router.post('/locatario', requireRole('locatario'), async (req, res) => {
     return badRequest(res, 'Las coordenadas del evento no son validas.')
   }
 
-  const { data, error } = await req.supabase!
+  const { data, error } = await serviceSupabase
     .from('locatario_events')
     .insert({
       creator_id: req.authUser!.id,
@@ -280,7 +312,7 @@ router.post('/locatario', requireRole('locatario'), async (req, res) => {
 router.delete('/locatario/:id', requireRole('locatario'), async (req, res) => {
   const { id } = req.params
 
-  const { error } = await req.supabase!
+  const { error } = await serviceSupabase
     .from('locatario_events')
     .delete()
     .eq('id', id)

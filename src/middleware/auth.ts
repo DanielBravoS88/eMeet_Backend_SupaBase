@@ -1,7 +1,9 @@
 import type { NextFunction, Request, Response } from 'express'
-import { createAnonClient } from '../lib/supabase'
+import { createAnonClient, createServiceRoleClient } from '../lib/supabase'
 import { forbidden, serverError, unauthorized } from '../utils/http'
 import type { UserRole } from '../types/supabase'
+
+const serviceSupabase = createServiceRoleClient()
 
 function readRoleBucket(value: unknown): UserRole | null {
   if (!value || typeof value !== 'object') return null
@@ -31,7 +33,7 @@ async function syncAuthProfile(req: Request) {
   const role = extractRole(req)
   const fallbackName = userMetadata.name?.trim() || req.authUser?.email?.split('@')[0] || 'Usuario'
 
-  const { error } = await req.supabase!
+  const { error } = await serviceSupabase
     .from('profiles')
     .upsert({
       id: req.authUser!.id,
@@ -69,13 +71,13 @@ export async function withAuth(req: Request, res: Response, next: NextFunction) 
     return unauthorized(res, 'Sesion invalida o expirada.')
   }
 
-  const { data: profile, error: profileError } = await supabase
+  const { error: profileError } = await serviceSupabase
     .from('profiles')
-    .select('*')
+    .select('id')
     .eq('id', data.user.id)
-    .single()
+    .maybeSingle()
 
-  if (profileError || !profile) {
+  if (profileError) {
     return serverError(res, 'No se pudo validar el perfil del usuario.')
   }
 
@@ -84,7 +86,8 @@ export async function withAuth(req: Request, res: Response, next: NextFunction) 
 
   try {
     await syncAuthProfile(req)
-  } catch {
+  } catch (e) {
+    console.error('[withAuth] syncAuthProfile falló:', e)
     return unauthorized(res, 'No se pudo sincronizar el perfil autenticado.')
   }
 
