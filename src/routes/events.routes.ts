@@ -47,6 +47,8 @@ router.post('/like', async (req, res) => {
     return badRequest(res, 'eventId y eventTitle son obligatorios.')
   }
 
+  const now = new Date().toISOString()
+
   const { error: likeError } = await req.supabase!
     .from('user_events')
     .insert({
@@ -56,9 +58,9 @@ router.post('/like', async (req, res) => {
       event_image_url: eventImageUrl ?? null,
       event_address: eventAddress ?? null,
       action: 'like',
+      created_at: now,
     })
 
-  // 23505 = unique_violation: el like ya existía, no es error real
   if (likeError && likeError.code !== '23505') {
     return serverError(res, 'No se pudo registrar el like.')
   }
@@ -70,9 +72,9 @@ router.post('/like', async (req, res) => {
       event_title: eventTitle,
       event_image_url: eventImageUrl ?? null,
       event_address: eventAddress ?? null,
+      created_at: now,
     })
 
-  // 23505 = la sala ya existe, no es error real
   if (roomError && roomError.code !== '23505') {
     return serverError(res, 'No se pudo crear la sala del evento.')
   }
@@ -82,9 +84,10 @@ router.post('/like', async (req, res) => {
     .insert({
       room_id: eventId,
       user_id: req.authUser!.id,
+      joined_at: now,
+      last_read_at: now,
     })
 
-  // 23505 = el usuario ya es miembro, no es error real
   if (memberError && memberError.code !== '23505') {
     return serverError(res, 'No se pudo unir al usuario a la sala del evento.')
   }
@@ -113,9 +116,9 @@ router.post('/save', async (req, res) => {
       event_image_url: eventImageUrl ?? null,
       event_address: eventAddress ?? null,
       action: 'save',
+      created_at: new Date().toISOString(),
     })
 
-  // 23505 = unique_violation: el evento ya estaba guardado, no es error real
   if (error && error.code !== '23505') {
     return serverError(res, 'No se pudo guardar el evento.')
   }
