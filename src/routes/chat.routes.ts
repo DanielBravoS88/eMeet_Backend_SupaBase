@@ -248,6 +248,7 @@ router.post('/rooms/:id/messages', async (req, res) => {
       room_id: id,
       user_id: req.authUser!.id,
       text: text.trim(),
+      created_at: new Date().toISOString(),
     })
     .select('*')
     .single()
