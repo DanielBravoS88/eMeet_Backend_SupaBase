@@ -47,51 +47,48 @@ router.post('/like', async (req, res) => {
     return badRequest(res, 'eventId y eventTitle son obligatorios.')
   }
 
+  const now = new Date().toISOString()
+
   const { error: likeError } = await req.supabase!
     .from('user_events')
-    .upsert(
-      {
-        user_id: req.authUser!.id,
-        event_id: eventId,
-        event_title: eventTitle,
-        event_image_url: eventImageUrl ?? null,
-        event_address: eventAddress ?? null,
-        action: 'like',
-      },
-      { onConflict: 'user_id,event_id,action' },
-    )
+    .insert({
+      user_id: req.authUser!.id,
+      event_id: eventId,
+      event_title: eventTitle,
+      event_image_url: eventImageUrl ?? null,
+      event_address: eventAddress ?? null,
+      action: 'like',
+      created_at: now,
+    })
 
-  if (likeError) {
+  if (likeError && likeError.code !== '23505') {
     return serverError(res, 'No se pudo registrar el like.')
   }
 
   const { error: roomError } = await req.supabase!
     .from('chat_rooms')
-    .upsert(
-      {
-        id: eventId,
-        event_title: eventTitle,
-        event_image_url: eventImageUrl ?? null,
-        event_address: eventAddress ?? null,
-      },
-      { onConflict: 'id' },
-    )
+    .insert({
+      id: eventId,
+      event_title: eventTitle,
+      event_image_url: eventImageUrl ?? null,
+      event_address: eventAddress ?? null,
+      created_at: now,
+    })
 
-  if (roomError) {
+  if (roomError && roomError.code !== '23505') {
     return serverError(res, 'No se pudo crear la sala del evento.')
   }
 
   const { error: memberError } = await req.supabase!
     .from('room_members')
-    .upsert(
-      {
-        room_id: eventId,
-        user_id: req.authUser!.id,
-      },
-      { onConflict: 'room_id,user_id' },
-    )
+    .insert({
+      room_id: eventId,
+      user_id: req.authUser!.id,
+      joined_at: now,
+      last_read_at: now,
+    })
 
-  if (memberError) {
+  if (memberError && memberError.code !== '23505') {
     return serverError(res, 'No se pudo unir al usuario a la sala del evento.')
   }
 
@@ -112,19 +109,17 @@ router.post('/save', async (req, res) => {
 
   const { error } = await req.supabase!
     .from('user_events')
-    .upsert(
-      {
-        user_id: req.authUser!.id,
-        event_id: eventId,
-        event_title: eventTitle,
-        event_image_url: eventImageUrl ?? null,
-        event_address: eventAddress ?? null,
-        action: 'save',
-      },
-      { onConflict: 'user_id,event_id,action' },
-    )
+    .insert({
+      user_id: req.authUser!.id,
+      event_id: eventId,
+      event_title: eventTitle,
+      event_image_url: eventImageUrl ?? null,
+      event_address: eventAddress ?? null,
+      action: 'save',
+      created_at: new Date().toISOString(),
+    })
 
-  if (error) {
+  if (error && error.code !== '23505') {
     return serverError(res, 'No se pudo guardar el evento.')
   }
 
