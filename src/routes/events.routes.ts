@@ -112,19 +112,17 @@ router.post('/save', async (req, res) => {
 
   const { error } = await req.supabase!
     .from('user_events')
-    .upsert(
-      {
-        user_id: req.authUser!.id,
-        event_id: eventId,
-        event_title: eventTitle,
-        event_image_url: eventImageUrl ?? null,
-        event_address: eventAddress ?? null,
-        action: 'save',
-      },
-      { onConflict: 'user_id,event_id,action' },
-    )
+    .insert({
+      user_id: req.authUser!.id,
+      event_id: eventId,
+      event_title: eventTitle,
+      event_image_url: eventImageUrl ?? null,
+      event_address: eventAddress ?? null,
+      action: 'save',
+    })
 
-  if (error) {
+  // 23505 = unique_violation: el evento ya estaba guardado, no es error real
+  if (error && error.code !== '23505') {
     return serverError(res, 'No se pudo guardar el evento.')
   }
 
