@@ -1,18 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import request from 'supertest'
 import express from 'express'
 
-const { mockCreateAnonClient, mockCreateServiceRoleClient } = vi.hoisted(() => ({
-  mockCreateAnonClient: vi.fn(),
-  mockCreateServiceRoleClient: vi.fn(),
-}))
+const mockCreateAnonClient = jest.fn()
+const mockCreateServiceRoleClient = jest.fn()
 
-vi.mock('../lib/supabase', () => ({
+jest.mock('../lib/supabase', () => ({
   createAnonClient: mockCreateAnonClient,
   createServiceRoleClient: mockCreateServiceRoleClient,
 }))
 
-vi.mock('../config/env', () => ({
+jest.mock('../config/env', () => ({
   env: {
     FRONTEND_ORIGIN: 'http://localhost:3000',
     PORT: 4000,
@@ -60,7 +57,7 @@ describe('POST /auth/forgot-password', () => {
   it('responde 200 con mensaje seguro cuando el email es valido', async () => {
     mockCreateAnonClient.mockReturnValue({
       auth: {
-        resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
+        resetPasswordForEmail: jest.fn().mockResolvedValue({ error: null }),
       },
     })
     const app = await createApp()
@@ -73,7 +70,7 @@ describe('POST /auth/forgot-password', () => {
   it('responde 200 con el mismo mensaje aunque el email no este registrado', async () => {
     mockCreateAnonClient.mockReturnValue({
       auth: {
-        resetPasswordForEmail: vi.fn().mockResolvedValue({ error: { message: 'User not found' } }),
+        resetPasswordForEmail: jest.fn().mockResolvedValue({ error: { message: 'User not found' } }),
       },
     })
     const app = await createApp()
@@ -134,7 +131,7 @@ describe('POST /auth/reset-password', () => {
   it('responde 400 cuando el token es invalido o expirado', async () => {
     mockCreateAnonClient.mockReturnValue({
       auth: {
-        getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: { message: 'token expired' } }),
+        getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: { message: 'token expired' } }),
       },
     })
     const app = await createApp()
@@ -148,7 +145,7 @@ describe('POST /auth/reset-password', () => {
   it('responde 400 cuando supabase no devuelve usuario', async () => {
     mockCreateAnonClient.mockReturnValue({
       auth: {
-        getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+        getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
       },
     })
     const app = await createApp()
@@ -161,13 +158,13 @@ describe('POST /auth/reset-password', () => {
   it('actualiza la contrasena y responde 200 cuando todo es valido', async () => {
     mockCreateAnonClient.mockReturnValue({
       auth: {
-        getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-abc' } }, error: null }),
+        getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-abc' } }, error: null }),
       },
     })
     mockCreateServiceRoleClient.mockReturnValue({
       auth: {
         admin: {
-          updateUserById: vi.fn().mockResolvedValue({ data: {}, error: null }),
+          updateUserById: jest.fn().mockResolvedValue({ data: {}, error: null }),
         },
       },
     })
@@ -182,13 +179,13 @@ describe('POST /auth/reset-password', () => {
   it('responde 500 cuando falla la actualizacion en supabase', async () => {
     mockCreateAnonClient.mockReturnValue({
       auth: {
-        getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-abc' } }, error: null }),
+        getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-abc' } }, error: null }),
       },
     })
     mockCreateServiceRoleClient.mockReturnValue({
       auth: {
         admin: {
-          updateUserById: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
+          updateUserById: jest.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
         },
       },
     })

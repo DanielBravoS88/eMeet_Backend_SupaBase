@@ -1,16 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { isMember, cleanupEmptyRoom, purgeExpiredRooms } from './chatService'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function makeChain(overrides: Record<string, unknown> = {}) {
   const chain: Record<string, unknown> = {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    in: vi.fn().mockReturnThis(),
-    not: vi.fn().mockReturnThis(),
-    lt: vi.fn().mockReturnThis(),
-    delete: vi.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    in: jest.fn().mockReturnThis(),
+    not: jest.fn().mockReturnThis(),
+    lt: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
     ...overrides,
   }
   return chain
@@ -22,29 +21,29 @@ function makeSupabase(responses: {
   expiredRooms?: { id: string }[]
 } = {}) {
   const supabase = {
-    from: vi.fn((table: string) => {
+    from: jest.fn((table: string) => {
       if (table === 'room_members') {
         return makeChain({
-          select: vi.fn().mockReturnValue(
+          select: jest.fn().mockReturnValue(
             Promise.resolve({ count: responses.memberCount ?? 0, error: responses.memberError ? { message: 'err' } : null }),
           ),
-          eq: vi.fn().mockReturnThis(),
-          delete: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          delete: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnThis(),
           }),
         })
       }
       if (table === 'chat_rooms') {
         return makeChain({
-          select: vi.fn().mockReturnValue({
-            not: vi.fn().mockReturnThis(),
-            lt: vi.fn().mockReturnValue(
+          select: jest.fn().mockReturnValue({
+            not: jest.fn().mockReturnThis(),
+            lt: jest.fn().mockReturnValue(
               Promise.resolve({ data: responses.expiredRooms ?? [], error: null }),
             ),
           }),
-          delete: vi.fn().mockReturnValue({
-            in: vi.fn().mockReturnValue(Promise.resolve({ error: null })),
-            eq: vi.fn().mockReturnValue(Promise.resolve({ error: null })),
+          delete: jest.fn().mockReturnValue({
+            in: jest.fn().mockReturnValue(Promise.resolve({ error: null })),
+            eq: jest.fn().mockReturnValue(Promise.resolve({ error: null })),
           }),
         })
       }
@@ -59,18 +58,18 @@ function makeSupabase(responses: {
 describe('isMember', () => {
   it('returns true when count > 0', async () => {
     const supabase = {
-      from: vi.fn(() => ({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
+      from: jest.fn(() => ({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
         then: undefined,
       })),
     }
 
     // simulate the chained call resolving with count=1
     let callCount = 0
-    const chain = {
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn(() => {
+    const chain: any = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn(() => {
         callCount++
         if (callCount === 2) {
           return Promise.resolve({ count: 1, error: null })
@@ -78,7 +77,7 @@ describe('isMember', () => {
         return chain
       }),
     }
-    supabase.from = vi.fn().mockReturnValue(chain)
+    supabase.from = jest.fn().mockReturnValue(chain)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await isMember(supabase as any, 'room1', 'user1')
@@ -87,9 +86,9 @@ describe('isMember', () => {
 
   it('returns false when count is 0', async () => {
     let callCount = 0
-    const chain = {
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn(() => {
+    const chain: any = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn(() => {
         callCount++
         if (callCount === 2) {
           return Promise.resolve({ count: 0, error: null })
@@ -97,7 +96,7 @@ describe('isMember', () => {
         return chain
       }),
     }
-    const supabase = { from: vi.fn().mockReturnValue(chain) }
+    const supabase = { from: jest.fn().mockReturnValue(chain) }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await isMember(supabase as any, 'room1', 'user1')
@@ -106,9 +105,9 @@ describe('isMember', () => {
 
   it('returns false on DB error', async () => {
     let callCount = 0
-    const chain = {
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn(() => {
+    const chain: any = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn(() => {
         callCount++
         if (callCount === 2) {
           return Promise.resolve({ count: null, error: { message: 'db error' } })
@@ -116,7 +115,7 @@ describe('isMember', () => {
         return chain
       }),
     }
-    const supabase = { from: vi.fn().mockReturnValue(chain) }
+    const supabase = { from: jest.fn().mockReturnValue(chain) }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await isMember(supabase as any, 'room1', 'user1')
@@ -127,21 +126,21 @@ describe('isMember', () => {
 // ── cleanupEmptyRoom ──────────────────────────────────────────────────────────
 
 describe('cleanupEmptyRoom', () => {
-  beforeEach(() => { vi.clearAllMocks() })
+  beforeEach(() => { jest.clearAllMocks() })
 
   it('deletes the room when member count is 0', async () => {
-    const deleteEq = vi.fn().mockResolvedValue({ error: null })
+    const deleteEq = jest.fn().mockResolvedValue({ error: null })
     const roomDeleteChain = { eq: deleteEq }
 
     const memberSelectChain = {
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockResolvedValue({ count: 0, error: null }),
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ count: 0, error: null }),
     }
 
     const supabase = {
-      from: vi.fn((table: string) => {
+      from: jest.fn((table: string) => {
         if (table === 'room_members') return memberSelectChain
-        if (table === 'chat_rooms') return { delete: vi.fn().mockReturnValue(roomDeleteChain) }
+        if (table === 'chat_rooms') return { delete: jest.fn().mockReturnValue(roomDeleteChain) }
         return {}
       }),
     }
@@ -153,15 +152,15 @@ describe('cleanupEmptyRoom', () => {
   })
 
   it('does NOT delete the room when members remain', async () => {
-    const roomFrom = vi.fn()
+    const roomFrom = jest.fn()
 
     const memberSelectChain = {
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockResolvedValue({ count: 2, error: null }),
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ count: 2, error: null }),
     }
 
     const supabase = {
-      from: vi.fn((table: string) => {
+      from: jest.fn((table: string) => {
         if (table === 'room_members') return memberSelectChain
         if (table === 'chat_rooms') { roomFrom(); return {} }
         return {}
@@ -178,15 +177,15 @@ describe('cleanupEmptyRoom', () => {
 
 describe('purgeExpiredRooms', () => {
   it('returns empty array when no expired rooms', async () => {
-    const ltFn = vi.fn().mockResolvedValue({ data: [], error: null })
+    const ltFn = jest.fn().mockResolvedValue({ data: [], error: null })
     const chain = {
-      select: vi.fn().mockReturnThis(),
-      not: vi.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      not: jest.fn().mockReturnThis(),
       lt: ltFn,
-      delete: vi.fn().mockReturnThis(),
-      in: vi.fn().mockResolvedValue({ error: null }),
+      delete: jest.fn().mockReturnThis(),
+      in: jest.fn().mockResolvedValue({ error: null }),
     }
-    const supabase = { from: vi.fn().mockReturnValue(chain) }
+    const supabase = { from: jest.fn().mockReturnValue(chain) }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await purgeExpiredRooms(supabase as any)
@@ -195,14 +194,14 @@ describe('purgeExpiredRooms', () => {
 
   it('returns the IDs of deleted rooms', async () => {
     const expired = [{ id: 'room-a' }, { id: 'room-b' }]
-    const deleteIn = vi.fn().mockResolvedValue({ error: null })
+    const deleteIn = jest.fn().mockResolvedValue({ error: null })
 
     const supabase = {
-      from: vi.fn(() => ({
-        select: vi.fn().mockReturnThis(),
-        not: vi.fn().mockReturnThis(),
-        lt: vi.fn().mockResolvedValue({ data: expired, error: null }),
-        delete: vi.fn().mockReturnValue({ in: deleteIn }),
+      from: jest.fn(() => ({
+        select: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        lt: jest.fn().mockResolvedValue({ data: expired, error: null }),
+        delete: jest.fn().mockReturnValue({ in: deleteIn }),
       })),
     }
 
