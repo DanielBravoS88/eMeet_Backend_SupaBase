@@ -1,4 +1,9 @@
 {
+    "jest.jestCommandLine": "npm test --",
+    "jest.autoRun": "off",
+    "vitest.enable": false,
+    "testing.automaticallyOpenPeekView": "never",
+
     "python.testing.unittestArgs": [
         "-v",
         "-s",

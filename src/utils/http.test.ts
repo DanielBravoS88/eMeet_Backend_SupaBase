@@ -3,11 +3,11 @@ import { badRequest, serverError, unauthorized } from './http'
 
 function createResponseMock() {
   const res = {
-    status: vi.fn(),
-    json: vi.fn(),
+    status: jest.fn(),
+    json: jest.fn(),
   } as unknown as Response
 
-  ;(res.status as unknown as ReturnType<typeof vi.fn>).mockReturnValue(res)
+  ;(res.status as unknown as ReturnType<typeof jest.fn>).mockReturnValue(res)
   return res
 }
 

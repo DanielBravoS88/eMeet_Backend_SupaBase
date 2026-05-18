@@ -1,33 +1,34 @@
 import type { NextFunction, Request, Response } from 'express'
 import { withAuth } from './auth'
 
-const {
-  mockCreateAnonClient,
-  mockUnauthorized,
-  serviceSupabaseMock,
-} = vi.hoisted(() => {
-  const serviceSupabaseMock = {
-    from: vi.fn().mockReturnValue({
-      upsert: vi.fn().mockResolvedValue({ error: null }),
+jest.mock('../lib/supabase', () => ({
+  createAnonClient: jest.fn(),
+  createServiceRoleClient: jest.fn().mockReturnValue({
+    from: jest.fn().mockReturnValue({
+      upsert: jest.fn().mockResolvedValue({ error: null }),
     }),
-  }
-  return {
-    mockCreateAnonClient: vi.fn(),
-    mockUnauthorized: vi.fn(),
-    serviceSupabaseMock,
-  }
-})
-
-vi.mock('../lib/supabase', () => ({
-  createAnonClient: mockCreateAnonClient,
-  createServiceRoleClient: vi.fn().mockReturnValue(serviceSupabaseMock),
+  }),
 }))
 
-vi.mock('../utils/http', () => ({
-  forbidden: vi.fn(),
-  serverError: vi.fn(),
-  unauthorized: mockUnauthorized,
+jest.mock('../utils/http', () => ({
+  forbidden: jest.fn(),
+  serverError: jest.fn(),
+  unauthorized: jest.fn(),
 }))
+
+const supabaseMocks = jest.requireMock('../lib/supabase') as {
+  createAnonClient: jest.Mock
+  createServiceRoleClient: jest.Mock
+}
+const httpMocks = jest.requireMock('../utils/http') as {
+  unauthorized: jest.Mock
+}
+
+const mockCreateAnonClient = supabaseMocks.createAnonClient
+const mockUnauthorized = httpMocks.unauthorized
+const serviceSupabaseMock = supabaseMocks.createServiceRoleClient.mock.results[0].value as {
+  from: jest.Mock
+}
 
 function createReq(headers?: Record<string, string | undefined>) {
   return { headers: headers ?? {} } as unknown as Request
@@ -49,14 +50,14 @@ describe('withAuth middleware', () => {
     mockCreateAnonClient.mockReset()
     mockUnauthorized.mockReset()
     serviceSupabaseMock.from.mockReturnValue({
-      upsert: vi.fn().mockResolvedValue({ error: null }),
+      upsert: jest.fn().mockResolvedValue({ error: null }),
     })
   })
 
   it('rechaza cuando falta bearer token', async () => {
     const req = createReq()
     const res = createRes()
-    const next = vi.fn() as unknown as NextFunction
+    const next = jest.fn() as unknown as NextFunction
 
     await withAuth(req, res, next)
 
@@ -68,11 +69,11 @@ describe('withAuth middleware', () => {
   it('rechaza cuando supabase devuelve sesion invalida', async () => {
     const req = createReq({ authorization: 'Bearer token-invalido' })
     const res = createRes()
-    const next = vi.fn() as unknown as NextFunction
+    const next = jest.fn() as unknown as NextFunction
 
     mockCreateAnonClient.mockReturnValue({
       auth: {
-        getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: { message: 'invalid' } }),
+        getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: { message: 'invalid' } }),
       },
     })
 
@@ -86,13 +87,13 @@ describe('withAuth middleware', () => {
   it('continua con perfil mínimo cuando syncAuthProfile falla', async () => {
     const req = createReq({ authorization: 'Bearer token-valido' })
     const res = createRes()
-    const next = vi.fn() as unknown as NextFunction
+    const next = jest.fn() as unknown as NextFunction
 
     mockCreateAnonClient.mockReturnValue({
-      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: VALID_USER }, error: null }) },
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: VALID_USER }, error: null }) },
     })
     serviceSupabaseMock.from.mockReturnValue({
-      upsert: vi.fn().mockResolvedValue({ error: { message: 'DB unavailable' } }),
+      upsert: jest.fn().mockResolvedValue({ error: { message: 'DB unavailable' } }),
     })
 
     await withAuth(req, res, next)
@@ -108,10 +109,10 @@ describe('withAuth middleware', () => {
   it('continua y adjunta usuario y perfil cuando token es valido', async () => {
     const req = createReq({ authorization: 'Bearer token-valido' })
     const res = createRes()
-    const next = vi.fn() as unknown as NextFunction
+    const next = jest.fn() as unknown as NextFunction
 
     const supabaseMock = {
-      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: VALID_USER }, error: null }) },
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: VALID_USER }, error: null }) },
     }
     mockCreateAnonClient.mockReturnValue(supabaseMock)
 
