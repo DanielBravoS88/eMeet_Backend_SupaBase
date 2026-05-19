@@ -354,14 +354,14 @@ Las siguientes variables de entorno fueron identificadas directamente en el cód
 
 ```mermaid
 flowchart TD
-    U[Usuario / Navegador] -->|HTTPS| FE
+    U["Usuario / Navegador"] -->|HTTPS| FE
 
     subgraph FE [eMeet_frontend - Next.js 14 - Vercel]
         direction TB
         MW[Middleware Next.js - Proteccion de rutas - Roles]
         APP[App Router - Feed - Chat - Perfil - Admin - Locatario]
         CTX[Contextos - Auth - Chat - NearbyPlaces - LocatarioEvents]
-        RH[Route Handlers app/api/ - admin ServiceRole - deezer - keepalive - OAuth]
+        RH["Route Handlers app/api/ - admin ServiceRole - deezer - keepalive - OAuth"]
     end
 
     MW --> APP
@@ -374,13 +374,13 @@ flowchart TD
 
     subgraph BACK [eMeet_Backend_SupaBase - Express.js - Render]
         direction LR
-        AUTH[/auth - login - register - logout - reset-pwd]
-        PROF[/profile - GET - PATCH - avatar]
-        EVT[/events - like - save - CRUD]
-        CHAT[/chat - rooms - messages - join - read]
-        PLC[/places - search-nearby - photo proxy]
-        ADM[/admin - stats - reports - gestion]
-        MON[/monetization - tokens - pagos - QR - coupons]
+        AUTH["/auth - login - register - logout - reset-pwd"]
+        PROF["/profile - GET - PATCH - avatar"]
+        EVT["/events - like - save - CRUD"]
+        CHAT["/chat - rooms - messages - join - read"]
+        PLC["/places - search-nearby - photo proxy"]
+        ADM["/admin - stats - reports - gestion"]
+        MON["/monetization - tokens - pagos - QR - coupons"]
     end
 
     CTX -->|signIn - OAuth| SA
