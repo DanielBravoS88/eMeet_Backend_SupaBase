@@ -331,13 +331,13 @@
 
 ```mermaid
 flowchart LR
-    AUTH[/auth] -->|Login exitoso - user| HOME[/ Feed]
-    AUTH -->|Login exitoso - admin| ADMIN[/admin]
-    AUTH -->|Login exitoso - locatario| LOCAT[/locatario]
+    AUTH["/auth"] -->|Login exitoso - user| HOME["/feed"]
+    AUTH -->|Login exitoso - admin| ADMIN["/admin"]
+    AUTH -->|Login exitoso - locatario| LOCAT["/locatario"]
 
-    HOME <-->|BottomNavBar| SEARCH[/search]
-    HOME <-->|BottomNavBar| CHAT_LIST[/chat]
-    HOME <-->|BottomNavBar| SAVED[/saved]
-    HOME <-->|BottomNavBar| PROFILE[/profile]
-    CHAT_LIST -->|Abrir sala| CHAT_ROOM[/chat/roomId]
+    HOME <-->|BottomNavBar| SEARCH["/search"]
+    HOME <-->|BottomNavBar| CHAT_LIST["/chat"]
+    HOME <-->|BottomNavBar| SAVED["/saved"]
+    HOME <-->|BottomNavBar| PROFILE["/profile"]
+    CHAT_LIST -->|Abrir sala| CHAT_ROOM["/chat/roomId"]
 ```
