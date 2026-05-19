@@ -356,42 +356,42 @@ Las siguientes variables de entorno fueron identificadas directamente en el cód
 flowchart TD
     U[Usuario / Navegador] -->|HTTPS| FE
 
-    subgraph FE [eMeet_frontend — Next.js 14 · Vercel]
+    subgraph FE [eMeet_frontend - Next.js 14 - Vercel]
         direction TB
-        MW[Middleware Next.js\nProtección de rutas · Roles]
-        APP[App Router / Páginas\nFeed · Chat · Perfil · Admin · Locatario]
-        CTX[Contextos Globales\nAuth · Chat · NearbyPlaces · LocatarioEvents]
-        RH[Route Handlers app/api/\nadmin con Service Role · deezer proxy · keepalive · OAuth callback]
+        MW[Middleware Next.js - Proteccion de rutas - Roles]
+        APP[App Router - Feed - Chat - Perfil - Admin - Locatario]
+        CTX[Contextos - Auth - Chat - NearbyPlaces - LocatarioEvents]
+        RH[Route Handlers app/api/ - admin ServiceRole - deezer - keepalive - OAuth]
     end
 
     MW --> APP
     APP --> CTX
     APP --> RH
 
-    CTX -->|fetchApi — Bearer JWT| BACK
+    CTX -->|fetchApi - Bearer JWT| BACK
     RH -->|Service Role Key| SA
     RH -->|HTTP proxy| DZ[Deezer API]
 
-    subgraph BACK [eMeet_Backend_SupaBase — Express.js · Render]
+    subgraph BACK [eMeet_Backend_SupaBase - Express.js - Render]
         direction LR
-        AUTH[/auth\nlogin · register\nlogout · reset-pwd]
-        PROF[/profile\nGET · PATCH · avatar]
-        EVT[/events\nlike · save · CRUD]
-        CHAT[/chat\nrooms · messages\njoin · read]
-        PLC[/places\nsearch-nearby\nphoto proxy]
-        ADM[/admin\nstats · reports\ngestión]
-        MON[/monetization\ntokens · pagos\nQR · coupons]
+        AUTH[/auth - login - register - logout - reset-pwd]
+        PROF[/profile - GET - PATCH - avatar]
+        EVT[/events - like - save - CRUD]
+        CHAT[/chat - rooms - messages - join - read]
+        PLC[/places - search-nearby - photo proxy]
+        ADM[/admin - stats - reports - gestion]
+        MON[/monetization - tokens - pagos - QR - coupons]
     end
 
-    CTX -->|signIn · OAuth| SA
+    CTX -->|signIn - OAuth| SA
     CTX -->|WebSocket postgres_changes| RT
 
-    subgraph SUP [Supabase — ksghpwonmnxmbhmfpaog]
+    subgraph SUP [Supabase - ksghpwonmnxmbhmfpaog]
         direction TB
-        SA[Auth\nJWT RS256 · OAuth Google/Apple]
-        DB[(PostgreSQL\n14 tablas)]
-        RT[Realtime\nWebSocket]
-        ST[Storage\navatars · event-images · event-videos]
+        SA[Auth - JWT RS256 - OAuth Google/Apple]
+        DB[(PostgreSQL - 14 tablas)]
+        RT[Realtime - WebSocket]
+        ST[Storage - avatars - event-images - event-videos]
     end
 
     BACK -->|Supabase JS Client| DB
@@ -399,9 +399,9 @@ flowchart TD
     BACK -->|SDK upload| ST
     DB -->|CDC triggers| RT
 
-    PLC -->|HTTP| GM[Google Maps Platform\nPlaces API + Photo Proxy]
-    MON -->|SDK| MP[Mercado Pago\nCheckout + Webhook]
-    MON -->|HTTP| TB[Transbank\nWebPay Plus]
+    PLC -->|HTTP| GM[Google Maps Platform - Places API - Photo Proxy]
+    MON -->|SDK| MP[Mercado Pago - Checkout - Webhook]
+    MON -->|HTTP| TB[Transbank WebPay Plus]
 ```
 
 ---
