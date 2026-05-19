@@ -57,67 +57,95 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph FRONTEND [eMeet_frontend — Next.js 14 App Router]
+    subgraph FRONTEND ["eMeet_frontend — Next.js 14 App Router"]
         direction TB
 
-        subgraph PAGES [Páginas — app/]
-            P1[/ — FeedPage]
-            P2[/auth — AuthPage]
-            P3[/chat — ChatPage]
-            P4[/chat/roomId — ChatRoomPage]
-            P5[/search — SearchPage]
-            P6[/saved — SavedPage]
-            P7[/profile — ProfilePage]
-            P8[/admin — AdminDashboard]
-            P9[/locatario — LocatarioPanel]
+        subgraph PAGES ["Páginas — app/"]
+            P1["/ — FeedPage"]
+            P2["/auth — AuthPage"]
+            P3["/chat — ChatPage"]
+            P4["/chat/[roomId] — ChatRoomPage"]
+            P5["/search — SearchPage"]
+            P6["/saved — SavedPage"]
+            P7["/profile — ProfilePage"]
+            P8["/admin — AdminDashboard"]
+            P9["/locatario — LocatarioPanel"]
         end
 
-        subgraph PROVIDERS [Providers — src/providers/]
+        subgraph PROVIDERS ["Providers — src/providers/"]
             APP[AppProviders]
             GM[GoogleMapsProvider]
         end
 
-        subgraph CONTEXTS [Contextos — src/context/]
+        subgraph CONTEXTS ["Contextos — src/context/"]
             AUTH[AuthContext]
             CHAT[ChatContext]
             NEAR[NearbyPlacesContext]
             LOC[LocatarioEventsContext]
         end
 
-        subgraph COMPS [Componentes — src/components/]
+        subgraph COMPS ["Componentes — src/components/"]
             SW[SwipeCard]
             LAY[Layout]
-            NAV[NavBar / BottomNavBar / SidebarNav]
+            NAV["NavBar / BottomNavBar / SidebarNav"]
             MAP[BellavistaMap]
-            LOG[LoginForm / SignUpForm]
-            ADM[admin/AdminShell, KpiCard, EventsTable, etc.]
-            OTH[DistanceFilter, PlaceTypeFilters, ImageUpload, LocationPickerMap]
+            LOG["LoginForm / SignUpForm"]
+            ADM["AdminShell, KpiCard, EventsTable…"]
+            OTH["DistanceFilter, PlaceTypeFilters, ImageUpload, LocationPickerMap"]
         end
 
-        subgraph LIB [Lib — src/lib/]
-            SUP_C[supabase.ts — clientes browser/server]
-            CN[cn.ts — classnames helper]
-            FA[fetchApi.ts — fetch helper con auth]
-            AS[authSession.ts — helpers de sesión]
+        subgraph LIB ["Lib — src/lib/"]
+            SUP_C["supabase.ts — clientes browser/server"]
+            CN["cn.ts — classnames helper"]
+            FA["fetchApi.ts — fetch helper con auth"]
+            AS["authSession.ts — helpers de sesión"]
         end
 
-        subgraph HOOKS [Hooks — src/hooks/]
+        subgraph HOOKS ["Hooks — src/hooks/"]
             HNP[useNearbyPlaces]
             HIU[useImageUpload]
             HVU[useVideoUpload]
         end
 
-        subgraph API [Route Handlers — app/api/]
-            RH1[api/admin/stats — Service Role Key]
-            RH2[api/admin/reports — Service Role Key]
-            RH3[api/admin/finance — Service Role Key]
-            RH4[api/deezer — proxy musical]
-            RH5[api/keepalive — keep-alive Render]
-            RH6[auth/callback — OAuth Supabase]
+        subgraph API ["Route Handlers — app/api/"]
+            RH1["api/admin/stats — Service Role Key"]
+            RH2["api/admin/reports — Service Role Key"]
+            RH3["api/admin/finance — Service Role Key"]
+            RH4["api/deezer — proxy musical"]
+            RH5["api/keepalive — keep-alive Render"]
+            RH6["auth/callback — OAuth Supabase"]
         end
 
-        subgraph MW [Middleware]
-            MWR[middleware.ts — protección de rutas]
+        subgraph MW ["Middleware"]
+            MWR["middleware.ts — protección de rutas"]
+        end
+    end
+
+    subgraph BACKEND ["eMeet_Backend_SupaBase — Express.js 4 + Node.js 20 + TypeScript"]
+        direction TB
+
+        subgraph MW_BE ["Middleware — src/middleware/"]
+            AUTH_MW["auth.ts — withAuth / requireRole"]
+        end
+
+        subgraph ROUTES ["Rutas — src/routes/"]
+            RT_AUTH["/auth — registro, login, syncUserData"]
+            RT_PROFILE["/profile — GET / PATCH perfil"]
+            RT_EVENTS["/events — like, save, locatario CRUD"]
+            RT_CHAT["/chat — salas y mensajes"]
+            RT_PLACES["/places — búsqueda de lugares"]
+            RT_ADMIN["/admin — stats, usuarios, reportes"]
+            RT_MONET["/monetization — tokens, pagos, cupones QR"]
+        end
+
+        subgraph SERVICES ["Servicios — src/services/"]
+            SVC_CHAT["chatService.ts — lógica de salas / cleanup"]
+            SVC_PLACES["placesService.ts — Google Places proxy"]
+        end
+
+        subgraph BE_LIB ["Lib + Config — src/lib/ + src/config/"]
+            BE_SUP["supabase.ts — clientes anon / service-role"]
+            BE_ENV["env.ts — variables de entorno tipadas"]
         end
     end
 
@@ -130,9 +158,20 @@ flowchart TD
     MW --> LIB
     PROVIDERS --> CONTEXTS
 
-    SUP_C -->|Supabase Auth + Realtime| SB[(Supabase)]
-    FA -->|REST + Bearer JWT| BE[(eMeet_Backend_Supabase)]
-    MAP -->|Places API| GME[(Google Maps Platform)]
+    FA -->|"REST + Bearer JWT"| ROUTES
+    ROUTES --> AUTH_MW
+    ROUTES --> SERVICES
+    ROUTES --> BE_LIB
+    AUTH_MW --> BE_SUP
+    SERVICES --> BE_LIB
+
+    SUP_C -->|"Supabase Auth + Realtime"| SB[(Supabase)]
+    BE_SUP -->|"PostgREST / Realtime"| SB
+    MAP -->|"Places API"| GME[(Google Maps Platform)]
+    SVC_PLACES -->|"Places API"| GME
+    RT_MONET -->|"Checkout"| MP[(Mercado Pago)]
+    RT_MONET -->|"WebPay"| TB[(Transbank)]
+    RH4 -->|"API musical"| DZ[(Deezer)]
 ```
 
 ---
@@ -141,51 +180,57 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    START([Usuario accede a la URL]) --> MW{Middleware\n¿Sesión activa?}
+    START(["Usuario accede a la URL"]) --> MW{"Middleware<br/>¿Sesión activa?"}
 
-    MW -->|No / Ruta protegida| AUTH_PAGE[/auth — Login / Registro]
-    MW -->|Sí| ROLE{¿Rol del usuario?}
+    MW -->|"No / Ruta protegida"| AUTH_PAGE["/auth — Login / Registro"]
+    MW -->|Sí| ROLE{"¿Rol del usuario?"}
 
-    AUTH_PAGE --> LOGIN_ACTION{¿Login o Registro?}
-    LOGIN_ACTION -->|Login| SUPABASE_LOGIN[Supabase Auth — login]
-    LOGIN_ACTION -->|Registro| SUPABASE_REG[Supabase Auth — registro]
-    LOGIN_ACTION -->|OAuth Google/Apple| OAUTH[OAuth → /auth/callback]
+    AUTH_PAGE --> LOGIN_ACTION{"¿Login o Registro?"}
+    LOGIN_ACTION -->|Login| SUPABASE_LOGIN["Supabase Auth — login"]
+    LOGIN_ACTION -->|Registro| SUPABASE_REG["Supabase Auth — registro"]
+    LOGIN_ACTION -->|"OAuth Google/Apple"| OAUTH["OAuth → /auth/callback"]
 
-    SUPABASE_LOGIN --> SYNC[syncUserData — cargar perfil y eventos]
-    SUPABASE_REG --> EMAIL_VER{¿Requiere\nverificación?}
-    EMAIL_VER -->|Sí| VERIFY[/auth/verify-email]
+    SUPABASE_LOGIN --> SYNC["syncUserData — cargar perfil y eventos"]
+    SUPABASE_REG --> EMAIL_VER{"¿Requiere<br/>verificación?"}
+    EMAIL_VER -->|Sí| VERIFY["/auth/verify-email"]
     EMAIL_VER -->|No| SYNC
     OAUTH --> SYNC
 
     SYNC --> ROLE
 
-    ROLE -->|user| FEED[/ — Feed de lugares]
-    ROLE -->|admin| ADMIN[/admin — Panel Admin]
-    ROLE -->|locatario| LOCAT[/locatario — Panel Locatario]
+    ROLE -->|user| FEED["/ — Feed de lugares"]
+    ROLE -->|admin| ADMIN["/admin — Panel Admin"]
+    ROLE -->|locatario| LOCAT["/locatario — Panel Locatario"]
 
     FEED --> GEOLOCATE[Solicitar geolocalización]
-    GEOLOCATE --> PLACES[Google Places API — lugares cercanos]
-    PLACES --> SWIPE{Usuario interactúa\ncon tarjetas}
+    GEOLOCATE --> PLACES["Google Places API — lugares cercanos"]
+    PLACES --> SWIPE{"Usuario interactúa<br/>con tarjetas"}
 
-    SWIPE -->|Like| LIKE_ACTION[Persistir like en Supabase]
-    LIKE_ACTION --> JOIN_CHAT{¿Unirse al chat?}
-    JOIN_CHAT -->|Sí| CHAT[/chat/roomId — Chat en tiempo real]
-    SWIPE -->|Guardar| SAVE_ACTION[Persistir save en Supabase]
+    SWIPE -->|Like| LIKE_ACTION["POST /events/like → Backend"]
+    LIKE_ACTION --> JOIN_CHAT{"¿Unirse al chat?"}
+    JOIN_CHAT -->|Sí| CHAT["/chat/[roomId] — Chat en tiempo real"]
+    SWIPE -->|Guardar| SAVE_ACTION["POST /events/save → Backend"]
     SWIPE -->|Descartar| EXCLUDE[Excluir lugar del feed local]
 
-    CHAT --> REALTIME[Supabase Realtime — Suscripción chat_messages]
+    CHAT --> REALTIME["Supabase Realtime — Suscripción chat_messages"]
 
     FEED --> NAV[Navegación inferior]
-    NAV -->|Search| SEARCH[/search]
-    NAV -->|Saved| SAVED[/saved]
-    NAV -->|Profile| PROFILE[/profile]
+    NAV -->|Search| SEARCH["/search"]
+    NAV -->|Saved| SAVED["/saved"]
+    NAV -->|Profile| PROFILE["/profile"]
     NAV -->|Chat| CHAT
 
-    PROFILE --> UPDATE[PATCH /api/profile → Backend]
-    SAVED --> LOAD_SAVED[GET /api/events/saved → Backend]
+    PROFILE --> UPDATE["PATCH /profile → Backend"]
+    SAVED --> LOAD_SAVED["GET /events/saved → Backend"]
 
-    ADMIN --> STATS[GET /api/admin/stats → Backend]
-    LOCAT --> LOCAT_EVENTS[GET/POST /events/locatario → Backend]
+    ADMIN --> STATS["GET /admin/stats → Backend"]
+    LOCAT --> LOCAT_EVENTS["GET/POST /events/locatario → Backend"]
+    LOCAT --> MONET["POST /monetization/purchase → Backend"]
+    MONET --> PAY{"¿Pasarela de pago?"}
+    PAY -->|"Mercado Pago"| MP["Redirect Checkout MP"]
+    PAY -->|Transbank| TB["Redirect WebPay"]
+    MP --> CONFIRM_MP["GET /monetization/mercadopago/callback"]
+    TB --> CONFIRM_TB["POST /monetization/transbank/confirm"]
 ```
 
 ---
