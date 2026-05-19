@@ -81,7 +81,7 @@ gantt
     Informe académico                 :done,    doc1, 2026-05-05, 4d
     Arquitectura y UML                :done,    doc2, 2026-05-06, 3d
     MER + Wireframes                  :done,    doc3, 2026-05-07, 2d
-    Gantt + Plan QA                   :done,    doc4, 2026-05-07, 2d
+    Diagrama Gantt + Plan QA          :done,    doc4, 2026-05-07, 2d
     Gestion y estructura de entrega   :done,    doc5, 2026-05-07, 2d
 
     section Entrega Final
