@@ -1,14 +1,14 @@
 Daniel Bravo
-- Rol:
-- Responsabilidades:
-- Correo:
+- Rol: Full-Stack / Tech Lead
+- Responsabilidades: Arquitectura del sistema, decisiones técnicas, desarrollo frontend y backend, revisión de código, despliegue CI/CD
+- GitHub: DanielBravoS88
 
 Francisco Levipil
-- Rol:
-- Responsabilidades:
-- Correo:
+- Rol: Backend / Frontend Developer
+- Responsabilidades: Integración backend, desarrollo de APIs REST, conexión con servicios externos, desarrollo de componentes frontend
+- GitHub: Fr4nk017
 
-Antoni Vivar
-- Rol:
-- Responsabilidades:
-- Correo:
+Antonio Vivar
+- Rol: Full-Stack / DevOps
+- Responsabilidades: Despliegue cloud (Vercel/Render), autenticación y sesiones, desarrollo frontend, documentación técnica
+- GitHub: Antonio-Vivar07

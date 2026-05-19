@@ -1,131 +1,65 @@
-# Código Fuente — eMeet Frontend
+# Código Fuente — eMeet Backend
 
 ---
 
 ## 1. Ubicación del Código Fuente
 
-El repositorio `eMeet_frontend` contiene todo el código fuente del frontend de la aplicación eMeet. Se encuentra en la raíz del repositorio bajo las siguientes carpetas principales:
+El repositorio `eMeet_Backend_SupaBase` contiene el código fuente del backend de la aplicación eMeet. Se encuentra bajo las siguientes carpetas principales:
 
 ```
-eMeet_frontend/
-├── app/                    ← Rutas del App Router de Next.js (páginas y layouts)
-├── src/                    ← Código fuente principal (componentes, contextos, hooks, lib)
-├── public/                 ← Archivos estáticos públicos (favicon, SVGs)
-├── docs/                   ← Documentos técnicos internos del equipo
-├── Documentacion/          ← Documentación académica (creada en esta entrega)
+eMeet_Backend_SupaBase/
+├── src/                    ← Código fuente principal
+├── Documentacion/          ← Documentación académica
 ├── Producto/               ← Antecedentes técnicos del producto
 ├── Gestion/                ← Gestión del proyecto
-├── middleware.ts            ← Middleware de protección de rutas (Next.js)
-├── next.config.mjs          ← Configuración de Next.js
-├── package.json             ← Dependencias y scripts
-├── tailwind.config.js       ← Configuración de Tailwind CSS
-├── tsconfig.json            ← Configuración de TypeScript
-└── README.md                ← README principal del repositorio
+├── package.json            ← Dependencias y scripts
+├── tsconfig.json           ← Configuración TypeScript
+├── .env                    ← Variables de entorno (NO commitear)
+└── README.md               ← README principal del repositorio
 ```
 
 ---
 
 ## 2. Estructura Detallada del Código
 
-### `app/` — Páginas y rutas (Next.js App Router)
-
-```
-app/
-├── layout.tsx              ← Layout raíz: metadatos, fuentes, AppProviders, TopLoader
-├── page.tsx                ← Feed principal (/) con swipe de lugares
-├── template.tsx            ← Template global para animaciones de página
-├── loading.tsx             ← Componente de carga global
-├── auth/
-│   ├── page.tsx            ← Página de login y registro
-│   ├── callback/route.ts   ← Route Handler para callback OAuth de Supabase
-│   ├── verify-email/page.tsx ← Página de verificación de email
-│   └── auth-map-illustration.svg
-├── chat/
-│   ├── page.tsx            ← Lista de salas de chat
-│   ├── [roomId]/page.tsx   ← Sala de chat individual
-│   └── loading.tsx
-├── search/
-│   ├── page.tsx            ← Búsqueda y exploración
-│   └── loading.tsx
-├── saved/
-│   ├── page.tsx            ← Lugares guardados
-│   └── loading.tsx
-├── profile/
-│   ├── page.tsx            ← Perfil del usuario
-│   └── loading.tsx
-├── admin/
-│   ├── layout.tsx          ← Layout del panel admin
-│   ├── page.tsx            ← Dashboard de administrador
-│   ├── events/page.tsx     ← Gestión de eventos
-│   ├── users/page.tsx      ← Gestión de usuarios
-│   ├── moderation/page.tsx ← Moderación de contenido
-│   └── finance/page.tsx    ← Estadísticas financieras
-├── locatario/
-│   └── page.tsx            ← Panel de locatario
-└── api/
-    ├── admin/
-    │   ├── stats/route.ts  ← BFF: GET /admin/stats
-    │   ├── reports/route.ts ← BFF: GET/POST /admin/reports
-    │   ├── reports/[id]/route.ts ← BFF: PATCH /admin/reports/:id
-    │   └── finance/route.ts ← BFF: GET /admin/finance
-    └── auth/callback/route.ts ← Callback OAuth
-```
-
 ### `src/` — Código fuente principal
 
 ```
 src/
-├── index.css               ← Estilos globales + directivas Tailwind
-├── assets/                 ← Imágenes estáticas (hero.png, SVGs)
-├── components/             ← Componentes reutilizables
-│   ├── SwipeCard.tsx       ← Tarjeta de evento con drag y swipe (Framer Motion)
-│   ├── Layout.tsx          ← Wrapper con Header, BottomNavBar y sidebar
-│   ├── NavBar.tsx          ← Barra de navegación superior
-│   ├── BottomNavBar.tsx    ← Navegación inferior fija
-│   ├── SidebarNav.tsx      ← Sidebar de navegación lateral
-│   ├── BellavistaMap.tsx   ← Mapa interactivo (Google Maps + Places)
-│   ├── LocationPickerMap.tsx ← Selector de ubicación en mapa
-│   ├── LoginForm.tsx       ← Formulario de login
-│   ├── SignUpForm.tsx       ← Formulario de registro
-│   ├── ProtectedRoute.tsx  ← Componente de protección de ruta (client)
-│   ├── DistanceFilter.tsx  ← Slider de filtro de distancia
-│   ├── PlaceTypeFilters.tsx ← Chips de filtro por tipo de lugar
-│   ├── ImageUpload.tsx     ← Subida de imágenes a Supabase Storage
-│   ├── VideoUpload.tsx     ← Subida de videos a Supabase Storage
-│   ├── DateTimePicker.tsx  ← Selector de fecha y hora
-│   └── admin/              ← Componentes del panel de administración
-│       ├── AdminShell.tsx
-│       ├── KpiCard.tsx
-│       ├── EventsTable.tsx
-│       ├── TicketAreaChart.tsx
-│       ├── CategoryDonut.tsx
-│       ├── Sidebar.tsx
-│       └── Topbar.tsx
-├── context/                ← Contextos globales de React
-│   ├── AuthContext.tsx     ← Estado de autenticación y sesión
-│   ├── ChatContext.tsx     ← Salas de chat y mensajes (Supabase Realtime)
-│   ├── NearbyPlacesContext.tsx ← Lugares cercanos (Google Places API)
-│   └── LocatarioEventsContext.tsx ← Eventos de locatarios
-├── hooks/                  ← Custom hooks
-│   ├── useNearbyPlaces.ts  ← Fetch de lugares cercanos desde Google Places
-│   ├── useImageUpload.ts   ← Upload de imágenes a Supabase Storage
-│   └── useVideoUpload.ts   ← Upload de videos a Supabase Storage
-├── lib/                    ← Utilidades y clientes
-│   ├── supabase.ts         ← Clientes Supabase (browser/server) + tipo Database
-│   ├── cn.ts               ← Helper de composición de clases CSS (classnames)
-│   ├── fetchApi.ts         ← Fetch helper con autenticación automática
-│   └── authSession.ts      ← Helpers de sesión Supabase
-├── providers/              ← Wrappers de providers
-│   ├── AppProviders.tsx    ← Provider raíz (Auth + Chat + Locatario)
-│   └── GoogleMapsProvider.tsx ← Provider de Google Maps
-├── services/               ← Servicios de negocio
-│   ├── placesService.ts    ← Configuración visual de tipos de lugar + queries
-│   └── monetizationService.ts ← Servicio de monetización (pendiente)
+├── app.ts                  ← Configuración de Express: middlewares, rutas, CORS, Helmet
+├── server.ts               ← Punto de entrada: inicia servidor en puerto 4000
+├── config/
+│   └── env.ts              ← Carga y valida variables de entorno desde process.env
+├── lib/
+│   └── supabase.ts         ← Clientes Supabase (anon y service role)
 ├── types/
-│   └── index.ts            ← Tipos TypeScript centrales (Event, User, ChatRoom, etc.)
-└── data/
-    ├── mockEvents.ts       ← Datos mock de eventos (para desarrollo sin backend)
-    └── placeFeedAdapter.ts ← Adaptador ScrapedPlace → Event
+│   ├── supabase.ts         ← Tipos generados de la base de datos Supabase
+│   └── express.d.ts        ← Extensión del tipo Request de Express (userId, user)
+├── middleware/
+│   ├── auth.ts             ← Middleware JWT: verifica Bearer token con Supabase Auth
+│   └── auth.test.ts        ← Tests unitarios del middleware de autenticación (Vitest)
+├── routes/
+│   ├── auth.routes.ts      ← POST /auth/login, /register, /logout, /reset-password
+│   ├── auth.routes.test.ts ← Tests de integración de rutas de autenticación (Vitest + Supertest)
+│   ├── profile.routes.ts   ← GET y PATCH /profile, upload de avatar a Supabase Storage
+│   ├── events.routes.ts    ← like, save, CRUD de eventos de locatario
+│   ├── events.ts           ← Lógica auxiliar de eventos
+│   ├── chat.routes.ts      ← rooms, messages, join, read
+│   ├── chat.ts             ← Lógica auxiliar de chat
+│   ├── places.routes.ts    ← search-nearby, photo proxy de Google Maps
+│   ├── admin.routes.ts     ← stats, reports, gestión de usuarios
+│   └── monetization.routes.ts ← tokens, pagos (MercadoPago/Transbank), QR, cupones, campañas
+├── services/
+│   ├── chatService.ts      ← Lógica de negocio del chat (rooms, messages)
+│   ├── chatService.test.ts ← Tests del servicio de chat (Vitest)
+│   └── placesService.ts    ← Integración con Google Maps Places API
+├── schemas/
+│   └── monetization.schema.ts ← Validaciones Zod para endpoints de monetización
+├── constants/
+│   └── monetization.ts     ← Constantes del módulo de monetización
+└── utils/
+    ├── http.ts             ← Helpers HTTP (respuestas estandarizadas, error handlers)
+    └── http.test.ts        ← Tests de los helpers HTTP (Vitest)
 ```
 
 ---
@@ -134,12 +68,10 @@ src/
 
 | Archivo | Descripción |
 |---|---|
-| `next.config.mjs` | Configuración de Next.js (no debe modificarse) |
-| `tailwind.config.js` | Configuración de Tailwind CSS con tokens de color del proyecto |
-| `tsconfig.json` | Configuración TypeScript con `strict: true` |
-| `postcss.config.js` | Configuración de PostCSS para Tailwind |
-| `middleware.ts` | Middleware de protección de rutas y validación de roles |
-| `.gitignore` | Archivos ignorados por Git (incluye `.env.local`, `node_modules`, `.next`) |
+| `tsconfig.json` | Configuración TypeScript con `target: ES2020`, `strict: true` |
+| `package.json` | Dependencias y scripts del proyecto |
+| `.env` | Variables de entorno locales — **nunca commitear** |
+| `.gitignore` | Archivos ignorados (incluye `.env`, `node_modules`, `dist/`) |
 
 ---
 
@@ -149,67 +81,94 @@ Según el archivo `package.json` del proyecto:
 
 | Script | Comando | Descripción |
 |---|---|---|
-| **Desarrollo** | `npm run dev` | Inicia el servidor de desarrollo con Turbopack (HMR ultra rápido) en `http://localhost:3000` |
-| **Build** | `npm run build` | Compila TypeScript y genera el build de producción en `.next/` |
-| **Producción** | `npm start` | Inicia el servidor Next.js con el build de producción |
-
-> ⚠️ No existen scripts de test, lint ni preview definidos en `package.json`. Se recomienda agregarlos en futuras iteraciones.
+| **Desarrollo** | `npm run dev` | `tsx watch src/server.ts` — recarga automática con hot reload en `http://localhost:4000` |
+| **Build** | `npm run build` | `tsc` — compila TypeScript a `dist/` |
+| **Producción** | `npm start` | `node dist/server.js` — inicia el servidor con el build compilado |
+| **Tests** | `npm test` | `vitest run` — ejecuta todos los tests con Vitest |
+| **Pre-dev** | `predev` | Libera el puerto 4000 antes de iniciar (evita conflictos) |
 
 ---
 
-## 5. Cómo Instalar las Dependencias
+## 5. Grupos de Rutas (src/app.ts)
 
-El proyecto utiliza **npm** como gestor de paquetes (confirmado por la presencia de `package-lock.json`):
+| Ruta | Archivo | Funcionalidad |
+|---|---|---|
+| `GET /health` | `app.ts` | Health check: `{ ok: true }` |
+| `/auth` | `routes/auth.routes.ts` | login, register, logout, reset-password |
+| `/profile` | `routes/profile.routes.ts` | GET y PATCH de perfil, subida de avatar |
+| `/events` | `routes/events.routes.ts` | like, save, CRUD de eventos de locatario |
+| `/chat` | `routes/chat.routes.ts` | rooms, messages, join, read |
+| `/places` | `routes/places.routes.ts` | search-nearby, photo proxy de Google Maps |
+| `/admin` | `routes/admin.routes.ts` | stats, reports, gestión de usuarios |
+| `/monetization` | `routes/monetization.routes.ts` | tokens, pagos, QR, cupones, campañas |
+
+---
+
+## 6. Tests Disponibles (Vitest + Supertest)
+
+| Archivo | Tipo | Descripción |
+|---|---|---|
+| `src/middleware/auth.test.ts` | Unitario | Tests del middleware de autenticación JWT |
+| `src/routes/auth.routes.test.ts` | Integración | Tests de los endpoints de autenticación |
+| `src/services/chatService.test.ts` | Unitario | Tests del servicio de chat |
+| `src/utils/http.test.ts` | Unitario | Tests de los helpers HTTP |
+
+---
+
+## 7. Cómo Instalar las Dependencias
+
+El proyecto utiliza **npm** como gestor de paquetes:
 
 ```bash
 # Desde la raíz del repositorio
 npm install
 ```
 
-> Requiere **Node.js** versión 18 o superior (recomendado: LTS 20.x o 22.x).
+> Requiere **Node.js** versión 20 (igual que el entorno de producción en Render).
 
 ---
 
-## 6. Cómo Ejecutar el Proyecto en Desarrollo
+## 8. Cómo Ejecutar el Proyecto en Desarrollo
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/DanielBravoS88/eMeet_frontend.git
-cd eMeet_frontend
+git clone https://github.com/DanielBravoS88/eMeet_Backend_SupaBase.git
+cd eMeet_Backend_SupaBase
 
 # 2. Instalar dependencias
 npm install
 
 # 3. Configurar variables de entorno
-cp .env.example .env.local
-# (Editar .env.local con los valores reales — ver Ambiente-local.md)
+cp .env.example .env
+# (Editar .env con los valores reales — ver Infraestructura-Cloud.md)
 
 # 4. Iniciar servidor de desarrollo
 npm run dev
-# → Disponible en http://localhost:3000
+# → Disponible en http://localhost:4000
+# → GET http://localhost:4000/health  →  { ok: true }
 ```
 
 ---
 
-## 7. Cómo Construir el Proyecto
+## 9. Cómo Construir el Proyecto
 
 ```bash
 npm run build
-# Genera el build optimizado en .next/
-# Reporta errores de TypeScript y advertencias de Next.js
+# Compila TypeScript a dist/
+# Reporta errores de tipado
 
 npm start
-# Inicia el servidor con el build de producción
+# Inicia el servidor con el build de producción (node dist/server.js)
 ```
 
 ---
 
-## 8. Archivos Importantes a No Modificar
+## 10. Archivos Importantes a No Modificar
 
 | Archivo | Razón |
 |---|---|
 | `package.json` | Dependencias del proyecto; modificar puede romper la instalación |
 | `tsconfig.json` | Configuración de TypeScript; modificar puede romper el tipado |
-| `next.config.mjs` | Configuración de Next.js; modificar puede romper el build |
-| `middleware.ts` | Protección de rutas crítica; modificar puede comprometer la seguridad |
-| `src/lib/supabase.ts` | Tipo `Database` sincronizado con Supabase; modificar puede romper el tipado |
+| `src/config/env.ts` | Carga de variables de entorno; modificar puede exponer credenciales |
+| `src/middleware/auth.ts` | Middleware de autenticación JWT crítico para la seguridad |
+| `src/lib/supabase.ts` | Clientes Supabase con credenciales; modificar puede comprometer el acceso |

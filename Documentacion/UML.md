@@ -1,6 +1,6 @@
 # Diagramas UML — Proyecto eMeet
 
-> Todos los diagramas están representados en formato **Mermaid** y se basan en el análisis real del repositorio `eMeet_frontend`. El backend `eMeet_Backend_Supabase` aparece como componente externo dada la falta de acceso directo a su repositorio.
+> Todos los diagramas están representados en formato **Mermaid** y se basan en el análisis real de ambos repositorios: `eMeet_frontend` y `eMeet_Backend_SupaBase`.
 
 ---
 
@@ -29,17 +29,26 @@ flowchart TD
     L -->|Crear evento propio| SYS
     L -->|Eliminar evento propio| SYS
     L -->|Ver mis eventos publicados| SYS
+    L -->|Comprar tokens| SYS
+    L -->|Crear campaña de promoción| SYS
+    L -->|Generar cupón con QR| SYS
+    L -->|Pagar con Mercado Pago / Transbank| SYS
 
     A -->|Ver dashboard y KPIs| SYS
     A -->|Gestionar usuarios| SYS
     A -->|Gestionar eventos publicados| SYS
     A -->|Moderar contenido y reportes| SYS
+    A -->|Resolver reportes de usuarios| SYS
     A -->|Ver estadísticas financieras| SYS
+    A -->|Gestionar transacciones| SYS
 
     SYS -->|Supabase Auth| SA[(Supabase Auth)]
     SYS -->|Google Places API| GP[(Google Places)]
     SYS -->|Supabase Realtime| RT[(Supabase Realtime)]
-    SYS -->|eMeet_Backend_Supabase| BE[(Backend API REST)]
+    SYS -->|eMeet_Backend_SupaBase| BE[(Backend API REST)]
+    SYS -->|Mercado Pago| MP[(Mercado Pago)]
+    SYS -->|Transbank WebPay| TB[(Transbank)]
+    SYS -->|Deezer API| DZ[(Deezer)]
 ```
 
 ---
@@ -99,10 +108,12 @@ flowchart TD
         end
 
         subgraph API [Route Handlers — app/api/]
-            BFF1[api/admin/stats]
-            BFF2[api/admin/reports]
-            BFF3[api/admin/finance]
-            BFF4[auth/callback]
+            RH1[api/admin/stats — Service Role Key]
+            RH2[api/admin/reports — Service Role Key]
+            RH3[api/admin/finance — Service Role Key]
+            RH4[api/deezer — proxy musical]
+            RH5[api/keepalive — keep-alive Render]
+            RH6[auth/callback — OAuth Supabase]
         end
 
         subgraph MW [Middleware]
@@ -273,6 +284,42 @@ classDiagram
         +String accessToken
     }
 
+    class TokenWallet {
+        +String id
+        +String userId
+        +Number balance
+        +String updatedAt
+    }
+
+    class PaymentOrder {
+        +String id
+        +String userId
+        +Number amount
+        +String currency
+        +String status
+        +String provider
+        +String externalId
+        +String createdAt
+    }
+
+    class Coupon {
+        +String id
+        +String code
+        +Number discount
+        +String usedBy
+        +String usedAt
+        +String expiresAt
+    }
+
+    class PromotionCampaign {
+        +String id
+        +String creatorId
+        +String title
+        +Number budgetTokens
+        +String status
+        +String createdAt
+    }
+
     User "1" --> "0..*" UserEvent : genera
     User "0..*" --> "0..*" ChatRoom : pertenece a
     ChatRoom "1" --> "0..*" ChatMessage : contiene
@@ -280,13 +327,18 @@ classDiagram
     ScrapedPlace --> Event : se adapta a\n(placeFeedAdapter)
     AuthState --> User : contiene
     UserEvent --> Event : referencia
+    User "1" --> "1" TokenWallet : posee
+    User "1" --> "0..*" PaymentOrder : realiza
+    User "1" --> "0..*" PromotionCampaign : crea
+    Coupon "0..1" --> "1" User : usado por
 ```
 
 ---
 
 ## 5. Notas sobre los Diagramas
 
-- Los diagramas representan el estado actual del repositorio `eMeet_frontend` según el análisis del código.
-- El componente `eMeet_Backend_Supabase` se incluye como caja negra externa, ya que no fue posible analizar su código interno.
-- Las tablas de Supabase (`profiles`, `user_events`, `chat_rooms`, `room_members`, `chat_messages`, `locatario_events`) fueron confirmadas desde el tipo `Database` en `src/lib/supabase.ts`.
+- Los diagramas representan el estado actual de ambos repositorios (`eMeet_frontend` y `eMeet_Backend_SupaBase`) según el análisis directo del código.
+- El backend `eMeet_Backend_SupaBase` está completamente analizado: Express.js 4.21 + Node.js 20 + TypeScript 5.6 + Prisma 6.19, con 7 grupos de rutas confirmados en `src/app.ts`.
+- Las 14 tablas de Supabase fueron confirmadas desde el tipo `Database` en `src/lib/supabase.ts` del frontend y las rutas del backend.
 - La clase `ScrapedPlace` representa los datos obtenidos desde Google Places API y se transforma en objetos `Event` mediante el adaptador `src/data/placeFeedAdapter.ts`.
+- Los servicios externos de pago (Mercado Pago, Transbank) y música (Deezer) son proxiados exclusivamente por el backend Express — no se llaman directamente desde el frontend.

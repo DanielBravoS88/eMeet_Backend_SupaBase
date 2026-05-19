@@ -115,7 +115,6 @@
 
 | Funcionalidad | Estado | Detalle |
 |---|---|---|
-| Integración completa con `eMeet_Backend_Supabase` | Parcial | Los Route Handlers y contextos consumen el backend, pero la integración completa depende del despliegue del backend externo |
 | Detalle expandido de evento | Parcial | No existe página dedicada de detalle; el modal de `SwipeCard` en `/search` es el acercamiento actual |
 | Búsqueda en `/search` | Parcial | La UI existe; la integración con datos reales del backend para búsqueda avanzada está pendiente de validar |
 | Estadísticas de likes/guardados en perfil | Parcial | Se muestra el conteo desde el estado local, no desde el backend en tiempo real |
@@ -139,28 +138,53 @@
 
 | Funcionalidad | Prioridad | Detalle |
 |---|---|---|
-| Recuperación de contraseña | Alta | No detectada; requiere Supabase Auth `resetPasswordForEmail()` |
-| Notificaciones push | Media | Mencionadas en roadmap del README original |
-| Sistema de pagos / tickets | Media | Sin implementación detectada |
+| Notificaciones push | Media | Mencionadas en roadmap; sin implementación actual |
 | PWA (Progressive Web App) | Baja | Sin `manifest.json` ni service worker |
 | Modo oscuro / claro | Baja | Solo modo oscuro disponible actualmente |
-| Pruebas automatizadas | Alta | Sin suite de tests implementada |
-| Limitación de cuota Google Places en BFF | Alta | API key expuesta en cliente; se recomienda mover al Route Handler |
+| Pruebas automatizadas E2E (Playwright) | Media | El backend tiene suite Vitest parcial; el frontend no tiene tests E2E |
 | Perfil expandido de locatario (analítica) | Media | Panel básico existe; analítica avanzada pendiente |
-| Sistema de reportes para usuarios | Media | Solo visible en panel admin; flujo de reporte del usuario no detectado |
+| Flujo de reporte del usuario final | Media | Solo visible en panel admin; el usuario normal no puede reportar aún |
 
 ---
 
-## 5. Funcionalidades del Backend (`eMeet_Backend_Supabase`)
+## 5. Funcionalidades del Backend (`eMeet_Backend_SupaBase`)
 
-> Las siguientes funcionalidades dependen del repositorio `eMeet_Backend_Supabase`. Se documentan según lo inferido desde el frontend.
+El backend Express.js está completamente implementado y desplegado en Render: https://emeet-backend-supabase-p0i6.onrender.com
 
-| Funcionalidad backend | Estado desde frontend | Pendiente |
+| Ruta backend | Funcionalidad | Estado |
 |---|---|---|
-| `POST /auth/login` | Llamado desde `AuthContext` | ⏳ Validar implementación interna |
-| `POST /auth/register` | Llamado desde `AuthContext` | ⏳ Validar implementación interna |
-| `GET /profile`, `PATCH /profile` | Llamado desde `AuthContext` y `updateUser()` | ⏳ Validar implementación interna |
-| `GET /events/liked`, `GET /events/saved` | Llamado al sincronizar el usuario post-login | ⏳ Validar implementación interna |
-| `GET/POST /chat/rooms/:id/messages` | Llamado desde `ChatContext` | ⏳ Validar implementación interna |
-| `GET /admin/stats` | Llamado desde `app/admin/page.tsx` vía BFF | ⏳ Validar implementación interna |
-| `GET/POST /events/locatario` | Llamado desde `LocatarioEventsContext` | ⏳ Validar implementación interna |
+| `GET /health` | Health check | ✅ Implementado |
+| `POST /auth/login` | Login con email | ✅ Implementado |
+| `POST /auth/register` | Registro de usuario | ✅ Implementado |
+| `POST /auth/logout` | Cierre de sesión | ✅ Implementado |
+| `POST /auth/reset-password` | Recuperación de contraseña | ✅ Implementado |
+| `GET /profile` | Obtener perfil del usuario | ✅ Implementado |
+| `PATCH /profile` | Actualizar perfil + avatar | ✅ Implementado |
+| `GET /events/liked` | Eventos con like del usuario | ✅ Implementado |
+| `GET /events/saved` | Eventos guardados del usuario | ✅ Implementado |
+| `POST /events/locatario` | Crear evento de locatario | ✅ Implementado |
+| `GET /events/locatario` | Listar eventos del locatario | ✅ Implementado |
+| `DELETE /events/locatario/:id` | Eliminar evento del locatario | ✅ Implementado |
+| `GET /chat/rooms` | Listar salas de chat | ✅ Implementado |
+| `POST /chat/rooms/:id/join` | Unirse a sala | ✅ Implementado |
+| `GET /chat/rooms/:id/messages` | Mensajes de una sala | ✅ Implementado |
+| `POST /chat/rooms/:id/messages` | Enviar mensaje | ✅ Implementado |
+| `POST /chat/rooms/:id/read` | Marcar sala como leída | ✅ Implementado |
+| `GET /places/search-nearby` | Búsqueda de lugares (Google Maps proxy) | ✅ Implementado |
+| `GET /places/photo` | Proxy de fotos de Google Maps | ✅ Implementado |
+| `GET /admin/stats` | KPIs del panel admin | ✅ Implementado |
+| `GET /admin/reports` | Reportes de contenido | ✅ Implementado |
+| `PATCH /admin/reports/:id` | Resolver reporte | ✅ Implementado |
+| `/monetization` (tokens, pagos, QR, cupones, campañas) | Monetización completa | ✅ Implementado |
+
+### Monetización implementada
+
+| Funcionalidad | Detalle |
+|---|---|
+| Billetera de tokens por usuario | `token_wallets` + `token_transactions` |
+| Compra de tokens | Integración Mercado Pago + Transbank vía `/monetization` |
+| Pagos con Mercado Pago | Checkout + Webhook de confirmación |
+| Pagos con Transbank WebPay Plus | Pago con tarjeta de débito/crédito |
+| Cupones de descuento | Generación, uso y validación por QR |
+| Validación QR de cupones | `qr_validations` — locatario escanea y valida |
+| Campañas de promoción | `promotion_campaigns` — locatarios compran visibilidad |

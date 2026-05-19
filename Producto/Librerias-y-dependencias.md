@@ -1,6 +1,6 @@
-# Librerías y Dependencias — eMeet Frontend
+# Librerías y Dependencias — eMeet Backend
 
-> Análisis basado en el archivo `package.json` del repositorio `eMeet_frontend`.
+> Análisis basado en el archivo `package.json` del repositorio `eMeet_Backend_SupaBase`.
 
 ---
 
@@ -8,123 +8,123 @@
 
 | Librería | Versión | Rol |
 |---|---|---|
-| **next** | ^14.2.15 | Framework React con App Router, SSR, SSG, Route Handlers, Middleware |
-| **react** | ^18.3.1 | Librería UI declarativa basada en componentes |
-| **react-dom** | ^18.3.1 | Renderizado de React en el DOM del navegador |
+| **express** | ^4.21.2 | Framework HTTP minimalista para API REST en Node.js |
 
 ### Decisión técnica
-Next.js 14 con App Router permite adoptar un modelo server-first donde los componentes se renderizan en el servidor por defecto, reduciendo el JavaScript enviado al cliente y mejorando el rendimiento inicial. Los Client Components se usan solo donde se requieren interacciones del navegador.
+Express.js fue elegido por su madurez, ecosistema amplio y flexibilidad para definir middlewares y rutas de forma granular. El servidor escucha en el puerto 4000 (desarrollo) y en el puerto configurado por variable de entorno en producción (Render).
 
 ---
 
-## 2. Librerías de Estilos y UI
+## 2. Lenguaje y Runtime
+
+| Herramienta | Versión | Rol |
+|---|---|---|
+| **Node.js** | 20 | Runtime del servidor (versión de producción en Render) |
+| **TypeScript** | ^5.6.3 | Tipado estático estricto (`strict: true`) |
+| **tsx** | ^4.19.3 | Ejecutor TypeScript para desarrollo con hot reload (`npm run dev`) |
+
+---
+
+## 3. Base de Datos y ORM
 
 | Librería | Versión | Rol |
 |---|---|---|
-| **tailwindcss** | ^3.4.14 | Framework de utilidades CSS, mobile-first, sin CSS custom |
-| **autoprefixer** | ^10.4.20 | Plugin PostCSS para añadir prefijos de navegador automáticamente |
-| **postcss** | ^8.4.47 | Procesador de CSS (requerido por Tailwind) |
+| **@prisma/client** | ^6.19.0 | ORM para operaciones relacionales tipadas sobre Supabase PostgreSQL |
+| **prisma** | ^6.19.0 | CLI de Prisma (migrations, generate, studio) |
+| **@supabase/supabase-js** | ^2.56.0 | Cliente JavaScript de Supabase (Auth, RPC, Storage, Realtime desde el backend) |
 
 ### Uso en el proyecto
-Tailwind es el único sistema de estilos del proyecto. No se usan CSS Modules ni archivos `.css` adicionales fuera de `src/index.css` (directivas Tailwind + estilos globales mínimos). El archivo `tailwind.config.js` extiende la paleta de colores con tokens del diseño de eMeet (primary, surface, card, accent, muted).
-
----
-
-## 3. Librerías de Animación
-
-| Librería | Versión | Rol |
-|---|---|---|
-| **framer-motion** | ^11.11.0 | Animaciones declarativas, gestos de arrastre (swipe), AnimatePresence |
-
-### Uso en el proyecto
-Se usa principalmente en:
-- `SwipeCard.tsx`: mecánica de arrastre y swipe con `motion.div`, `useMotionValue`, `useTransform`, `useSpring`, `AnimatePresence`.
-- `app/template.tsx`: animaciones de transición entre páginas.
-- Componentes de feedback visual (toasts, modales).
-
----
-
-## 4. Librerías de Iconos
-
-| Librería | Versión | Rol |
-|---|---|---|
-| **react-icons** | ^5.3.0 | Set amplio de iconos SVG (se usan íconos de la familia HeroIcons v2 — `hi2`) |
-| **lucide-react** | ^1.8.0 | Iconos SVG modernos usados principalmente en el panel de administración |
-
----
-
-## 5. Librerías de Mapas
-
-| Librería | Versión | Rol |
-|---|---|---|
-| **@react-google-maps/api** | ^2.20.8 | Wrapper React para Google Maps JavaScript API + Places API |
-
-### Uso en el proyecto
-- `BellavistaMap.tsx`: mapa interactivo con marcadores de lugares cercanos.
-- `LocationPickerMap.tsx`: selector de ubicación en formulario de locatario.
-- `NearbyPlacesContext.tsx`: usa `useJsApiLoader` para cargar la API de Google Maps.
-- `useNearbyPlaces.ts`: realiza búsquedas de lugares cercanos con `PlacesService`.
-
-### Variable de entorno requerida
-```
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
-```
-
----
-
-## 6. Librerías de Autenticación y Backend
-
-| Librería | Versión | Rol |
-|---|---|---|
-| **@supabase/supabase-js** | ^2.103.0 | Cliente JavaScript principal de Supabase (Auth, DB, Storage, Realtime) |
-| **@supabase/ssr** | ^0.10.2 | Integración de Supabase con Next.js SSR mediante cookies (sessions server-side) |
-
-### Uso en el proyecto
-- `src/lib/supabase.ts`: define los clientes browser (`createBrowserClient`) y servidor (`createServerClient`), el tipo `Database`, y la función `hasSupabaseEnv` para detectar si las variables están configuradas.
-- `middleware.ts`: usa `createServerClient` para validar la sesión en el middleware de Next.js.
-- `AuthContext.tsx`: usa `getSupabaseBrowserClient()` para login, logout, OAuth y sincronización de sesión.
-- `ChatContext.tsx`: usa Supabase Realtime para suscripción de mensajes en tiempo real.
-- `useImageUpload.ts` / `useVideoUpload.ts`: usan Supabase Storage para subir archivos.
+- **Prisma**: operaciones de lectura/escritura tipadas sobre las 14 tablas de Supabase PostgreSQL.
+- **Supabase JS Client**: se usa para Auth admin (`auth.admin.listUsers()`), Storage (upload de avatares e imágenes de eventos) y RPC en PostgreSQL.
+- Ambas librerías coexisten: Prisma para queries complejas y relacionales; Supabase JS para operaciones auth y storage nativas de Supabase.
 
 ### Variables de entorno requeridas
 ```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_ANON_KEY=
 ```
 
 ---
 
-## 7. Librerías de Gestión de Estado
-
-| Librería | Descripción |
-|---|---|
-| **React Context API** (nativa) | Única forma de estado global usada en el proyecto. No se usa Redux, Zustand ni Jotai. |
-
-### Contextos globales
-- `AuthContext`: estado de autenticación y sesión.
-- `ChatContext`: salas de chat y mensajes.
-- `NearbyPlacesContext`: lugares cercanos y filtros.
-- `LocatarioEventsContext`: eventos publicados por locatarios.
-
----
-
-## 8. Librerías de Visualización (Gráficos)
+## 4. Seguridad y Middleware HTTP
 
 | Librería | Versión | Rol |
 |---|---|---|
-| **recharts** | ^3.8.1 | Gráficos SVG para el panel de administración (área chart, donut chart) |
+| **helmet** | ^8.0.0 | Configura headers HTTP de seguridad (CSP, HSTS, X-Frame-Options, etc.) |
+| **cors** | ^2.8.5 | Configura CORS dinámico: permite `FRONTEND_ORIGIN`, localhost y `*.vercel.app` |
+| **morgan** | ^1.10.0 | Logger de requests HTTP (método, ruta, status, tiempo de respuesta) |
 
 ### Uso en el proyecto
-- `TicketAreaChart.tsx`: gráfico de área de tickets/interacciones por tiempo.
-- `CategoryDonut.tsx`: gráfico donut de distribución por categoría de eventos.
+Los tres middlewares se configuran globalmente en `src/app.ts` y se aplican a todas las rutas. El CORS usa una función dinámica para aceptar múltiples orígenes separados por coma (`FRONTEND_ORIGIN`).
 
 ---
 
-## 9. Librerías Utilitarias
+## 5. Autenticación
 
 | Librería | Versión | Rol |
 |---|---|---|
-| **nextjs-toploader** | ^3.9.17 | Barra de progreso de carga en la parte superior al navegar entre páginas |
+| **jsonwebtoken** (via @supabase/supabase-js) | — | Verificación de tokens JWT RS256 emitidos por Supabase Auth |
+
+La verificación JWT se realiza en `src/middleware/auth.ts` usando el cliente Supabase con `SUPABASE_SERVICE_ROLE_KEY`. El token se extrae del header `Authorization: Bearer <token>` y se valida con `supabase.auth.getUser(token)`.
+
+---
+
+## 6. Pagos
+
+| Librería | Versión | Rol |
+|---|---|---|
+| **mercadopago** | (SDK oficial) | Integración con Mercado Pago: Checkout + Webhook de confirmación |
+| **transbank-sdk** | (SDK oficial) | Integración con Transbank WebPay Plus |
+
+### Uso en el proyecto
+Ambas librerías se usan en `src/routes/monetization.routes.ts` para procesar pagos en Chile. Mercado Pago cubre el flujo de pago online con checkout y webhook de confirmación. Transbank WebPay Plus cubre pagos con tarjeta de débito/crédito.
+
+### Variables de entorno requeridas
+```
+MERCADOPAGO_ACCESS_TOKEN=
+TRANSBANK_API_KEY=
+```
+
+---
+
+## 7. Google Maps
+
+| Librería | Versión | Rol |
+|---|---|---|
+| (HTTP nativo / axios) | — | El backend proxea llamadas a Google Maps Places API desde `/places` |
+
+Las consultas a Google Maps Places API se realizan desde `src/services/placesService.ts` usando llamadas HTTP directas, protegiendo la clave del cliente.
+
+### Variable de entorno requerida
+```
+GOOGLE_MAPS_API_KEY=
+```
+
+---
+
+## 8. Validación de Datos
+
+| Librería | Versión | Rol |
+|---|---|---|
+| **zod** | (via schemas) | Validación de schemas en `src/schemas/monetization.schema.ts` |
+
+---
+
+## 9. Testing
+
+| Librería | Versión | Rol |
+|---|---|---|
+| **vitest** | ^4.1.0 | Framework de testing unitario e integración (compatible con TypeScript) |
+| **supertest** | (devDependency) | Testing de endpoints HTTP de Express sin levantar el servidor real |
+
+### Tests existentes
+| Archivo | Tipo |
+|---|---|
+| `src/middleware/auth.test.ts` | Unitario |
+| `src/routes/auth.routes.test.ts` | Integración |
+| `src/services/chatService.test.ts` | Unitario |
+| `src/utils/http.test.ts` | Unitario |
 
 ---
 
@@ -132,10 +132,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 | Librería | Versión | Rol |
 |---|---|---|
-| **typescript** | ~5.6.2 | Compilador TypeScript con `strict: true` |
-| **@types/node** | 25.5.2 | Tipos TypeScript para Node.js |
-| **@types/react** | ^18.3.12 | Tipos TypeScript para React |
-| **@types/react-dom** | ^18.3.1 | Tipos TypeScript para ReactDOM |
+| **typescript** | ^5.6.3 | Compilador TypeScript |
+| **@types/express** | — | Tipos TypeScript para Express |
+| **@types/node** | — | Tipos TypeScript para Node.js |
+| **@types/cors** | — | Tipos TypeScript para cors |
+| **@types/morgan** | — | Tipos TypeScript para morgan |
 
 ---
 
@@ -143,38 +144,24 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 | Categoría | Librerías |
 |---|---|
-| **Framework** | next, react, react-dom |
-| **UI / Estilos** | tailwindcss, autoprefixer, postcss |
-| **Animación** | framer-motion |
-| **Iconos** | react-icons, lucide-react |
-| **Mapas** | @react-google-maps/api |
-| **Autenticación / Backend** | @supabase/supabase-js, @supabase/ssr |
-| **Gráficos** | recharts |
-| **Utilidades UI** | nextjs-toploader |
-| **Tipado** | typescript, @types/node, @types/react, @types/react-dom |
+| **Framework HTTP** | express |
+| **Runtime / Lenguaje** | Node.js 20, TypeScript 5.6, tsx |
+| **Base de datos / ORM** | @prisma/client, prisma, @supabase/supabase-js |
+| **Seguridad** | helmet, cors |
+| **Logging** | morgan |
+| **Pagos** | mercadopago, transbank-sdk |
+| **Mapas** | Google Maps Places API (HTTP proxy) |
+| **Validación** | zod |
+| **Testing** | vitest, supertest |
+| **Tipado** | typescript, @types/express, @types/node |
 
 ---
 
-## 12. Riesgos y Observaciones
+## 12. Observaciones
 
-| Riesgo / Observación | Descripción |
+| Observación | Descripción |
 |---|---|
-| Google Maps API key expuesta en cliente | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` es accesible desde el navegador; se recomienda mover las consultas a un Route Handler |
-| Sin librería de testing | No se detecta Jest, Vitest, Playwright ni ninguna librería de pruebas en `package.json` |
-| Sin librería de validación de formularios | No se usa Zod, Yup ni React Hook Form; la validación es manual en los componentes |
-| Sin manejador de formularios | Se usa `useState` directamente para formularios sin librería dedicada |
-| Versión fijada de @types/node (25.5.2) | Sin `^` ni `~`, lo que puede causar conflictos en futuras instalaciones |
-| recharts importado dinámicamente | Correcto uso de `dynamic()` con `ssr: false` en el admin para evitar errores SSR |
-
----
-
-## 13. Librerías Relacionadas con Supabase
-
-Las siguientes librerías confirman la integración activa con Supabase:
-
-| Librería | Función en eMeet |
-|---|---|
-| `@supabase/supabase-js` | Autenticación, consultas a PostgreSQL, Realtime, Storage |
-| `@supabase/ssr` | Manejo de cookies para sesiones en middleware y Server Components |
-
-> Las funciones `createBrowserClient` y `createServerClient` se configuran con las variables `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+| Prisma en `dependencies` (no devDependencies) | Confirma uso en runtime de producción, no solo en desarrollo |
+| CORS dinámico | Acepta múltiples orígenes via `FRONTEND_ORIGIN` (separados por coma) y cualquier subdominio `*.vercel.app` |
+| Service Role Key solo en backend | `SUPABASE_SERVICE_ROLE_KEY` nunca debe exponerse al cliente; solo se usa en el backend y en Route Handlers admin del frontend |
+| Sin librería de rate limiting | No se detecta `express-rate-limit`; recomendable agregar en producción |

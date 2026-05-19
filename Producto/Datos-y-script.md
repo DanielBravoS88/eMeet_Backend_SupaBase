@@ -62,15 +62,13 @@ Los datos del feed principal provienen en tiempo real desde la **Google Maps Pla
 3. `useNearbyPlaces` llama a `google.maps.places.PlacesService.nearbySearch()`.
 4. Los resultados `ScrapedPlace[]` se adaptan a `Event[]` mediante `placeFeedAdapter.ts`.
 
-**Estos datos no se almacenan en el frontend**. El documento `docs/backend_plan.md` propone una tabla `cached_places` en Supabase para persistirlos.
+**Estos datos no se almacenan en Supabase**. El backend Express proxea las consultas a Google Places desde `/places`, protegiendo la API key del cliente. No existe una tabla `cached_places`; los lugares se obtienen en tiempo real.
 
 ---
 
 ## 3. Estructura Real de la Base de Datos (Supabase)
 
-Las siguientes tablas están confirmadas desde el tipo `Database` en `src/lib/supabase.ts`. El esquema SQL completo debe validarse con el proyecto Supabase: `https://supabase.com/dashboard/project/ksghpwonmnxmbhmfpaog`.
-
-> ⏳ **Pendiente por validar**: el esquema SQL exacto, índices, políticas RLS, triggers y funciones de la base de datos Supabase real.
+Las siguientes 14 tablas están confirmadas desde el tipo `Database` en `src/lib/supabase.ts` del frontend y las rutas del backend `eMeet_Backend_SupaBase`. El proyecto Supabase es: `https://supabase.com/dashboard/project/ksghpwonmnxmbhmfpaog`.
 
 ---
 
@@ -190,6 +188,108 @@ CREATE TABLE IF NOT EXISTS locatario_events (
   lng              DOUBLE PRECISION,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Tabla: token_wallets
+-- Billetera de tokens por usuario
+-- ──────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS token_wallets (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
+  balance    INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Tabla: token_transactions
+-- Historial de movimientos de tokens
+-- ──────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS token_transactions (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  wallet_id   UUID NOT NULL REFERENCES token_wallets(id) ON DELETE CASCADE,
+  amount      INTEGER NOT NULL,
+  type        TEXT NOT NULL,
+  description TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Tabla: payment_orders
+-- Órdenes de pago (MercadoPago / Transbank)
+-- ──────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS payment_orders (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  amount      NUMERIC NOT NULL,
+  currency    TEXT NOT NULL DEFAULT 'CLP',
+  status      TEXT NOT NULL DEFAULT 'pending',
+  provider    TEXT NOT NULL,
+  external_id TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Tabla: promotion_campaigns
+-- Campañas de promoción de locatarios
+-- ──────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS promotion_campaigns (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id    UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  title         TEXT NOT NULL,
+  budget_tokens INTEGER NOT NULL DEFAULT 0,
+  status        TEXT NOT NULL DEFAULT 'active',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Tabla: coupons
+-- Cupones de descuento con código único
+-- ──────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS coupons (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code       TEXT NOT NULL UNIQUE,
+  discount   NUMERIC NOT NULL,
+  used_by    UUID REFERENCES profiles(id),
+  used_at    TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ NOT NULL
+);
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Tabla: transactions
+-- Registro contable general
+-- ──────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS transactions (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  type       TEXT NOT NULL,
+  amount     NUMERIC NOT NULL,
+  status     TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Tabla: reports
+-- Reportes de contenido por usuarios
+-- ──────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS reports (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reporter_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  reported_user_id UUID REFERENCES profiles(id),
+  reason           TEXT NOT NULL,
+  status           TEXT NOT NULL DEFAULT 'pending',
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Tabla: qr_validations
+-- Validaciones de cupones mediante QR
+-- ──────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS qr_validations (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  coupon_id    UUID NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  validated_by UUID NOT NULL REFERENCES profiles(id),
+  validated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 ```
 
 ---
@@ -205,7 +305,7 @@ CREATE TABLE IF NOT EXISTS locatario_events (
 INSERT INTO profiles (id, name, role, bio, location, interests) VALUES
   ('00000000-0000-0000-0000-000000000001', 'Daniel Bravo', 'admin', 'Administrador del sistema', 'Santiago, Chile', ARRAY['gastronomia','musica']::event_category[]),
   ('00000000-0000-0000-0000-000000000002', 'Francisco Levipil', 'locatario', 'Dueño de Bar Constitución', 'Santiago, Chile', ARRAY['musica','fiesta']::event_category[]),
-  ('00000000-0000-0000-0000-000000000003', 'Antoni Vivar', 'user', 'Explorando panoramas', 'Santiago, Chile', ARRAY['cultura','arte']::event_category[]);
+  ('00000000-0000-0000-0000-000000000003', 'Antonio Vivar', 'user', 'Explorando panoramas', 'Santiago, Chile', ARRAY['cultura','arte']::event_category[]);
 
 -- ── Sala de chat de ejemplo
 INSERT INTO chat_rooms (id, event_title, event_address) VALUES

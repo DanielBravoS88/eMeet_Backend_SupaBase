@@ -24,7 +24,7 @@ Garantizar que el sistema eMeet funcione correctamente según los requerimientos
 - Pruebas de carga o estrés (infraestructura).
 - Pruebas de seguridad avanzada (penetration testing).
 - Pruebas de accesibilidad WCAG (fuera del alcance actual).
-- Repositorio `eMeet_Backend_Supabase` (se prueba su integración desde el frontend, no su código interno).
+- Pruebas de carga o estrés al backend (infraestructura Render).
 
 ---
 
@@ -140,7 +140,7 @@ Para la entrega académica, se recomienda documentar la siguiente evidencia:
 | Variables de entorno no configuradas en entorno de prueba | Alta | Alto | Usar archivo `.env.local` con valores reales para pruebas |
 | Google Maps API key sin cuota disponible | Media | Alto | Verificar cuota antes de pruebas; usar modo fallback si es necesario |
 | Supabase Realtime no disponible por red | Media | Medio | Probar en red estable; documentar si falla en entorno de prueba |
-| Backend `eMeet_Backend_Supabase` no disponible | Media | Alto | Probar con modo local (localStorage) como alternativa |
+| Backend en Render puede tardar en arrancar (cold start) | Media | Medio | El Route Handler `/api/keepalive` mantiene el servicio activo; verificar `GET /health` antes de pruebas |
 | Compatibilidad en Safari iOS | Media | Medio | Probar en dispositivo iOS real o simulador |
 
 ---
@@ -151,5 +151,5 @@ Para la entrega académica, se recomienda documentar la siguiente evidencia:
 2. **Agregar pruebas unitarias**: Usar Vitest para testear funciones puras como helpers de formato, adaptadores y validaciones.
 3. **Configurar un entorno de staging**: Usar variables de entorno separadas para no contaminar datos de producción durante las pruebas.
 4. **Revisar políticas RLS**: Verificar que las políticas de Row Level Security en Supabase impidan el acceso cruzado entre usuarios.
-5. **Revisar exposición de API keys**: Mover la clave de Google Maps al BFF (Route Handler) para evitar exposición en el cliente.
+5. **API keys protegidas**: La clave de Google Maps Places API ya es proxiada por el backend Express (`/places`), protegiendo la clave del cliente. Verificar que solo el mapa visual use la clave pública.
 6. **Documentar casos fallidos**: Registrar los casos que fallen durante QA con capturas de pantalla y pasos para reproducir, para su corrección antes de la entrega.

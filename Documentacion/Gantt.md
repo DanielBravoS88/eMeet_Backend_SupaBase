@@ -68,25 +68,25 @@ gantt
     ImageUpload + VideoUpload         :done,    loc2, 2026-04-28, 3d
 
     section Integración Backend
-    Route Handlers BFF (api/)         :done,    bff1, 2026-04-30, 4d
+    Route Handlers / API (admin+deezer):done,    bff1, 2026-04-30, 4d
     fetchApi helper + authSession     :done,    bff2, 2026-05-01, 2d
-    Conexión con eMeet_Backend_Supabase:active, bff3, 2026-05-03, 7d
+    Conexión con eMeet_Backend_SupaBase:done,   bff3, 2026-05-03, 7d
 
     section QA y Pruebas
     Pruebas funcionales manuales      :active,  qa1, 2026-05-05, 5d
-    Revisión de seguridad             :         qa2, 2026-05-08, 3d
-    Correcciones detectadas           :         qa3, 2026-05-10, 4d
+    Revisión de seguridad             :active,  qa2, 2026-05-08, 3d
+    Correcciones detectadas           :active,  qa3, 2026-05-10, 4d
 
     section Documentación
-    Informe académico                 :active,  doc1, 2026-05-05, 4d
-    Arquitectura y UML                :active,  doc2, 2026-05-06, 3d
-    MER + Wireframes                  :active,  doc3, 2026-05-07, 2d
-    Gantt + Plan QA                   :active,  doc4, 2026-05-07, 2d
-    Gestion y estructura de entrega   :active,  doc5, 2026-05-07, 2d
+    Informe académico                 :done,    doc1, 2026-05-05, 4d
+    Arquitectura y UML                :done,    doc2, 2026-05-06, 3d
+    MER + Wireframes                  :done,    doc3, 2026-05-07, 2d
+    Gantt + Plan QA                   :done,    doc4, 2026-05-07, 2d
+    Gestion y estructura de entrega   :done,    doc5, 2026-05-07, 2d
 
     section Entrega Final
-    Revisión final del PR             :         ent1, 2026-05-12, 2d
-    PR hacia main/dev                 :         ent2, 2026-05-13, 1d
+    Revisión final del PR             :done,    ent1, 2026-05-12, 2d
+    PR hacia main/dev                 :done,    ent2, 2026-05-13, 1d
     Entrega académica                 :milestone, ent3, 2026-05-14, 0d
 ```
 
@@ -101,19 +101,19 @@ gantt
 | Análisis | Wireframes y flujos de usuario | Equipo | 06/03/2026 | 09/03/2026 | ✅ Completado |
 | Configuración | Setup del proyecto Next.js 14 | Daniel Bravo | 10/03/2026 | 11/03/2026 | ✅ Completado |
 | Configuración | Configuración Supabase y variables de entorno | Francisco Levipil | 12/03/2026 | 13/03/2026 | ✅ Completado |
-| Frontend | AuthContext + página de autenticación | Antoni Vivar | 15/03/2026 | 18/03/2026 | ✅ Completado |
+| Frontend | AuthContext + página de autenticación | Antonio Vivar | 15/03/2026 | 18/03/2026 | ✅ Completado |
 | Frontend | SwipeCard + Feed principal | Daniel Bravo | 20/03/2026 | 24/03/2026 | ✅ Completado |
 | Frontend | SearchPage + SavedPage + ProfilePage | Equipo | 24/03/2026 | 28/03/2026 | ✅ Completado |
 | Google Maps | Integración Places API + NearbyPlacesContext | Francisco Levipil | 28/03/2026 | 05/04/2026 | ✅ Completado |
-| Supabase | Auth real (email + OAuth Google/Apple) | Antoni Vivar | 07/04/2026 | 11/04/2026 | ✅ Completado |
+| Supabase | Auth real (email + OAuth Google/Apple) | Antonio Vivar | 07/04/2026 | 11/04/2026 | ✅ Completado |
 | Supabase | Chat en tiempo real (Realtime) | Daniel Bravo | 12/04/2026 | 17/04/2026 | ✅ Completado |
 | Paneles | Panel de administrador completo | Francisco Levipil | 20/04/2026 | 25/04/2026 | ✅ Completado |
-| Paneles | Panel de locatario + formulario de evento | Antoni Vivar | 26/04/2026 | 30/04/2026 | ✅ Completado |
-| Backend | Integración con eMeet_Backend_Supabase | Equipo | 30/04/2026 | 06/05/2026 | 🔄 En progreso |
+| Paneles | Panel de locatario + formulario de evento | Antonio Vivar | 26/04/2026 | 30/04/2026 | ✅ Completado |
+| Backend | Integración con eMeet_Backend_SupaBase | Equipo | 30/04/2026 | 06/05/2026 | ✅ Completado |
 | QA | Pruebas funcionales manuales | Equipo | 05/05/2026 | 09/05/2026 | 🔄 En progreso |
-| QA | Revisión de seguridad y correcciones | Equipo | 08/05/2026 | 13/05/2026 | ⏳ Pendiente |
-| Documentación | Estructura académica completa | Equipo | 05/05/2026 | 08/05/2026 | 🔄 En progreso |
-| Entrega | PR hacia `main`/`dev` + entrega académica | Equipo | 12/05/2026 | 14/05/2026 | ⏳ Pendiente |
+| QA | Revisión de seguridad y correcciones | Equipo | 08/05/2026 | 13/05/2026 | 🔄 En progreso |
+| Documentación | Estructura académica completa | Equipo | 05/05/2026 | 08/05/2026 | ✅ Completado |
+| Entrega | PR hacia `main`/`dev` + entrega académica | Equipo | 12/05/2026 | 16/05/2026 | ✅ Completado |
 
 ---
 
@@ -130,4 +130,4 @@ gantt
 
 ## 5. Nota de Validación
 
-> ⚠️ Las fechas y responsables específicos de este Gantt son **estimaciones** basadas en el análisis del repositorio y deben ser validadas y ajustadas por el equipo de desarrollo (Daniel Bravo, Francisco Levipil, Antoni Vivar) según las fechas reales de trabajo y los plazos académicos oficiales del curso.
+> ⚠️ Las fechas y responsables específicos de este Gantt son **estimaciones** basadas en el análisis del repositorio y deben ser validadas y ajustadas por el equipo de desarrollo (Daniel Bravo, Francisco Levipil, Antonio Vivar) según las fechas reales de trabajo y los plazos académicos oficiales del curso.

@@ -14,7 +14,7 @@
 |---|---|
 | Daniel Bravo | Desarrollador Full-Stack / Líder técnico |
 | Francisco Levipil | Desarrollador Full-Stack / Integración backend |
-| Antoni Vivar | Desarrollador Frontend / UX |
+| Antonio Vivar | Desarrollador Frontend / UX |
 
 > Para información detallada de cada integrante, ver [Integrantes.txt](./Integrantes.txt).
 
@@ -44,7 +44,7 @@ El proyecto responde a una necesidad real del mercado de entretenimiento y gastr
 
 - Desarrollo full-stack moderno con Next.js 14, TypeScript y Supabase.
 - Integración de APIs externas (Google Maps Platform).
-- Arquitectura orientada a microservicios lógicos con BFF.
+- Arquitectura de tres capas directa (frontend Next.js → backend Express.js → Supabase), sin capa BFF.
 - Diseño UX/UI mobile-first con Tailwind CSS y Framer Motion.
 
 ---
@@ -62,7 +62,7 @@ Desarrollar una plataforma web móvil-first que permita a los usuarios descubrir
 3. Construir un chat comunitario en tiempo real usando Supabase Realtime.
 4. Desarrollar paneles diferenciados para locatarios y administradores.
 5. Persistir preferencias, likes, guardados y mensajes en Supabase PostgreSQL.
-6. Diseñar una arquitectura escalable con BFF en Next.js Route Handlers.
+6. Diseñar e implementar una arquitectura de tres capas directa (frontend Next.js → backend Express.js → Supabase), sin capa BFF, donde el backend concentra la lógica de negocio y seguridad.
 7. Documentar el proyecto con estándares académicos.
 
 ---
@@ -81,11 +81,9 @@ Desarrollar una plataforma web móvil-first que permita a los usuarios descubrir
 - Documentación académica completa.
 
 ### No incluye:
-- Sistema de pagos o tickets.
 - Notificaciones push nativas.
 - PWA instalable.
-- Recuperación de contraseña (pendiente).
-- Pruebas automatizadas (pendiente).
+- Pruebas automatizadas E2E completas (suite parcial implementada).
 
 ---
 
@@ -117,7 +115,7 @@ Desarrollar una plataforma web móvil-first que permita a los usuarios descubrir
 | Riesgo | Probabilidad | Impacto | Mitigación |
 |---|---|---|---|
 | Backend no disponible en tiempo de pruebas | Media | Alto | Usar modo local (localStorage) como fallback |
-| Cuota de Google Maps API agotada | Media | Alto | Implementar caché en BFF, limitar llamadas |
+| Cuota de Google Maps API agotada | Media | Alto | Implementar caché en backend Express (/places), limitar llamadas |
 | Pérdida de datos en Supabase | Baja | Alto | Configurar backups automáticos |
 | Conflictos en ramas de Git | Media | Medio | Estrategia de ramas clara (ver Estrategia-de-ramas.md) |
 | Sin pruebas automatizadas | Alta | Medio | Pruebas manuales documentadas antes de entrega |
@@ -140,8 +138,8 @@ Desarrollar una plataforma web móvil-first que permita a los usuarios descubrir
 | Entregable | Descripción | Estado |
 |---|---|---|
 | Repositorio `eMeet_frontend` | Código fuente completo del frontend | ✅ En producción |
-| Repositorio `eMeet_Backend_Supabase` | Backend completo | 🔄 En progreso |
-| Proyecto Supabase configurado | Base de datos, auth y realtime operativos | 🔄 En progreso |
+| Repositorio `eMeet_Backend_Supabase` | Backend completo | ✅ Completado |
+| Proyecto Supabase configurado | Base de datos, auth y realtime operativos | ✅ Completado |
 | Documentación académica | `/Documentacion`, `/Producto`, `/Gestion` | ✅ Entregada en este PR |
-| Pull Request hacia `main`/`dev` | PR con toda la documentación | ⏳ Pendiente |
-| Informe académico impreso o digital | Archivo `Informe.md` exportado a PDF | ⏳ Pendiente |
+| Pull Request hacia `main`/`dev` | PR con toda la documentación | ✅ Completado |
+| Informe académico impreso o digital | Archivo `Informe.md` exportado a PDF | ✅ Completado |

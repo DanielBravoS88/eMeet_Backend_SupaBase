@@ -1,153 +1,182 @@
 # Infraestructura Cloud — Proyecto eMeet
 
-> Este documento describe la infraestructura cloud del proyecto eMeet, basada en el análisis del repositorio `eMeet_frontend` y las integraciones detectadas en el código fuente.
+> Este documento describe la infraestructura cloud confirmada del proyecto eMeet según el Informe EP2 y el análisis de ambos repositorios (`eMeet_frontend` y `eMeet_Backend_SupaBase`).
 
 ---
 
 ## 1. Resumen del Stack de Infraestructura
 
-| Componente | Plataforma | Estado |
-|---|---|---|
-| **Frontend** (`eMeet_frontend`) | Vercel (sugerido) | ⏳ Pendiente de validar |
-| **Backend** (`eMeet_Backend_Supabase`) | Pendiente de validar | ⏳ Pendiente |
-| **Base de datos** | Supabase PostgreSQL | ✅ Configurado |
-| **Autenticación** | Supabase Auth | ✅ Configurado |
-| **Tiempo real** | Supabase Realtime | ✅ Configurado |
-| **Almacenamiento de archivos** | Supabase Storage | ✅ Configurado |
-| **Servicio de mapas** | Google Maps Platform | ✅ Integrado en frontend |
+| Componente | Plataforma | URL | Estado |
+|---|---|---|---|
+| **Frontend** (`eMeet_frontend`) | Vercel | https://e-meet-frontend-nine.vercel.app/ | ✅ Desplegado |
+| **Backend** (`eMeet_Backend_SupaBase`) | Render | https://emeet-backend-supabase-p0i6.onrender.com | ✅ Desplegado |
+| **Base de datos** | Supabase PostgreSQL | ksghpwonmnxmbhmfpaog | ✅ Configurado |
+| **Autenticación** | Supabase Auth | ksghpwonmnxmbhmfpaog | ✅ Configurado |
+| **Tiempo real** | Supabase Realtime | ksghpwonmnxmbhmfpaog | ✅ Configurado |
+| **Almacenamiento de archivos** | Supabase Storage | ksghpwonmnxmbhmfpaog | ✅ Configurado |
+| **Servicio de mapas** | Google Maps Platform | — | ✅ Integrado en backend (`/places`) |
+| **Pagos (Chile)** | Mercado Pago + Transbank | — | ✅ Integrado en backend (`/monetization`) |
+| **Proxy musical** | Deezer API | — | ✅ Integrado vía Route Handler frontend |
 
 ---
 
 ## 2. Frontend — `eMeet_frontend`
 
-### Plataforma sugerida: Vercel
+### Plataforma: Vercel
 
-El repositorio `eMeet_frontend` usa Next.js 14, el cual es desarrollado por Vercel y tiene integración nativa con esa plataforma. No se detectó configuración de Vercel (`vercel.json`) en el repositorio, pero es la opción más coherente y recomendada.
+**URL de producción**: https://e-meet-frontend-nine.vercel.app/
 
-> ⏳ **Pendiente por validar**: si el frontend ya está desplegado en Vercel u otra plataforma.
+El repositorio `eMeet_frontend` usa Next.js 14 con integración nativa en Vercel. CI/CD automático: cada push a `main` genera un deploy en producción. Los Pull Requests generan Preview URLs automáticas.
 
-### Proceso de despliegue sugerido en Vercel:
+### Proceso de despliegue en Vercel:
 
-1. Conectar el repositorio `DanielBravoS88/eMeet_frontend` a Vercel.
+1. Conectar el repositorio a Vercel.
 2. Configurar las variables de entorno en Vercel (Settings → Environment Variables).
 3. Seleccionar la rama `main` como rama de producción.
-4. Vercel detecta automáticamente Next.js y configura el build con `npm run build`.
-5. Cada Push a `main` dispara un despliegue automático.
-6. Los Pull Requests generan Preview URLs automáticamente.
-
-### Comando de build detectado:
-
-```bash
-npm run build
-# → next build (compilación TypeScript + generación estática + SSR)
-```
+4. Vercel detecta automáticamente Next.js y ejecuta `npm run build`.
+5. Cada Push a `main` dispara un despliegue automático (CI/CD: GitHub → Vercel).
 
 ---
 
-## 3. Backend — `eMeet_Backend_Supabase`
+## 3. Backend — `eMeet_Backend_SupaBase`
 
-> ⏳ **Pendiente por validar**: El repositorio `eMeet_Backend_Supabase` no estuvo disponible para análisis. La plataforma de despliegue del backend debe confirmarse con el equipo.
+### Plataforma: Render
 
-### Opciones de despliegue detectadas o sugeridas:
+**URL de producción**: https://emeet-backend-supabase-p0i6.onrender.com
 
-| Opción | Descripción |
+El backend es una API REST en **Express.js + Node 20 + TypeScript**, desplegado en Render con CI/CD automático desde GitHub (`main` branch).
+
+### Stack del backend:
+
+| Elemento | Tecnología |
 |---|---|
-| **Vercel** | Si el backend está implementado como Next.js API Routes o Route Handlers |
-| **Render** | Plataforma cloud simple para APIs Node.js/Express/Fastify |
-| **Railway** | Plataforma cloud para backends con base de datos |
-| **Supabase Edge Functions** | Funciones serverless dentro del propio proyecto Supabase |
+| Framework | Express.js 4 |
+| Runtime | Node.js 20 |
+| Lenguaje | TypeScript 5.6 |
+| ORM / DB client | Prisma + Supabase JS Client |
+| Seguridad | Helmet, CORS dinámico, JWT RS256 |
+| Logging | Morgan |
+| Pagos | Mercado Pago SDK, Transbank WebPay Plus |
+| Testing | Vitest + Supertest |
+
+### Grupos de rutas confirmados (src/app.ts):
+
+| Ruta | Funcionalidad |
+|---|---|
+| `GET /health` | Health check del servicio |
+| `/auth` | login, register, logout, reset-password |
+| `/profile` | GET y PATCH de perfil, subida de avatar |
+| `/events` | like, save, CRUD de eventos de locatario |
+| `/chat` | rooms, messages, join, read |
+| `/places` | search-nearby, photo proxy de Google Maps |
+| `/admin` | stats, reports, gestión de usuarios |
+| `/monetization` | tokens, pagos, QR, cupones, campañas |
+
+### Proceso de despliegue en Render:
+
+1. Conectar el repositorio a Render (Web Service).
+2. Configurar el entorno como Node.js 20, comando de build: `npm run build`, start: `npm start`.
+3. Variables de entorno configuradas en el dashboard de Render.
+4. Cada push a `main` dispara un redespliegue automático (CI/CD: GitHub → Render).
 
 ---
 
-## 4. Supabase — Plataforma Backend Principal
+## 4. Supabase — Plataforma de Datos
 
 **URL del proyecto**: https://supabase.com/dashboard/project/ksghpwonmnxmbhmfpaog
 
 | Servicio | Estado | Detalle |
 |---|---|---|
-| **PostgreSQL** | ✅ Activo | Base de datos relacional del sistema |
-| **Auth** | ✅ Activo | Autenticación con email, Google, Apple |
-| **Realtime** | ✅ Activo | WebSockets para chat en tiempo real |
-| **Storage** | ✅ Activo | Imágenes y videos de perfil y eventos |
-| **Edge Functions** | ⏳ No confirmado | Podría usarse para lógica serverless en backend |
-
-### Plan de Supabase recomendado:
-
-| Plan | Descripción | Adecuado para |
-|---|---|---|
-| **Free** | Hasta 500 MB de DB, 1 GB de storage, 2 proyectos | Desarrollo y MVP académico |
-| **Pro** | USD 25/mes, recursos aumentados, backups diarios | Producción real |
-
-> Para la entrega académica, el plan gratuito es suficiente. Para producción, se recomienda el plan Pro para garantizar backups automáticos y mayor capacidad.
+| **PostgreSQL** | ✅ Activo | 14 tablas: profiles, user_events, chat_rooms, room_members, chat_messages, locatario_events, token_wallets, token_transactions, payment_orders, promotion_campaigns, coupons, transactions, reports, qr_validations |
+| **Auth** | ✅ Activo | JWT RS256, OAuth Google, OAuth Apple |
+| **Realtime** | ✅ Activo | WebSocket `postgres_changes` para mensajes de chat |
+| **Storage** | ✅ Activo | Buckets: `avatars`, `event-images`, `event-videos` |
+| **Edge Functions** | ❌ No utilizado | El backend corre en Render como servidor Express |
 
 ---
 
 ## 5. Google Maps Platform
 
-| Servicio | Uso | Estado |
+| Servicio | Uso | Ubicación |
 |---|---|---|
-| **Maps JavaScript API** | Mapa interactivo (`BellavistaMap`, `LocationPickerMap`) | ✅ Integrado |
-| **Places API** | Búsqueda de lugares cercanos (`useNearbyPlaces`) | ✅ Integrado |
+| **Maps JavaScript API** | Mapa interactivo (`BellavistaMap`, `LocationPickerMap`) | Frontend (cliente) |
+| **Places API** | Búsqueda de lugares cercanos, proxied | Backend Express (`/places`) |
 
-**Variable de entorno**:
-```
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
-```
-
-> ⚠️ La API key está actualmente expuesta en el cliente (prefijo `NEXT_PUBLIC_`). Se recomienda mover las consultas a Google Places a un Route Handler del BFF para proteger la clave y controlar el consumo.
+> Las consultas a Google Places API se realizan desde el backend Express (`/places`), protegiendo la clave y controlando el consumo de cuota.
 
 ---
 
-## 6. Variables de Entorno por Ambiente
+## 6. Servicios de Pago
 
-### Ambiente de desarrollo (`.env.local`)
+### Mercado Pago
 
-| Variable | Descripción | Notas |
-|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase | No incluir en repositorio |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave anónima de Supabase | No incluir en repositorio |
-| `NEXT_PUBLIC_BACKEND_URL` | URL del backend REST | No incluir en repositorio |
-| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Clave de Google Maps | No incluir en repositorio |
-| `SUPABASE_SERVICE_ROLE_KEY` | Clave service role (solo servidor) | No incluir en repositorio |
+| Elemento | Detalle |
+|---|---|
+| Integración | SDK oficial de Mercado Pago en backend Express |
+| Flujo | Checkout + Webhook de confirmación |
+| Ruta | `/monetization` |
 
-### Ambiente de producción (Vercel → Settings → Environment Variables)
+### Transbank
 
-Las mismas variables deben configurarse en la plataforma de despliegue. En Vercel:
-1. Ir a: Project Settings → Environment Variables.
-2. Agregar cada variable con su valor real.
-3. Seleccionar los entornos donde aplica: Production, Preview, Development.
+| Elemento | Detalle |
+|---|---|
+| Integración | WebPay Plus en backend Express |
+| Ruta | `/monetization` |
 
 ---
 
-## 7. Procedimiento de Despliegue Sugerido
+## 7. Variables de Entorno por Ambiente
 
-### Frontend en Vercel
+### Frontend — `.env.local` (desarrollo) / Vercel (producción)
+
+| Variable | Descripción | Visibilidad |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase | Pública (cliente) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave anónima de Supabase | Pública (cliente) |
+| `NEXT_PUBLIC_BACKEND_URL` | URL del backend REST en Render | Pública (cliente) |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Clave de Google Maps (solo mapa visual) | Pública (cliente) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clave service role para Route Handlers admin | **Solo servidor** |
+
+### Backend — variables en Render (`src/config/env.ts`)
+
+| Variable | Descripción |
+|---|---|
+| `SUPABASE_URL` | URL del proyecto Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clave service role para operaciones admin |
+| `SUPABASE_ANON_KEY` | Clave anónima para operaciones de cliente |
+| `JWT_SECRET` | Secreto para validación de tokens |
+| `FRONTEND_ORIGIN` | Origen(s) permitidos por CORS (separados por coma) |
+| `MERCADOPAGO_ACCESS_TOKEN` | Credencial de Mercado Pago |
+| `TRANSBANK_API_KEY` | Credencial de Transbank WebPay |
+| `GOOGLE_MAPS_API_KEY` | Clave de Google Maps para Places API |
+| `PORT` | Puerto del servidor (4000 en desarrollo) |
+
+> ⚠️ Ninguna de estas variables debe subirse al repositorio. Usar `.env` en desarrollo y el dashboard de Render en producción.
+
+---
+
+## 8. CI/CD — Flujo de Despliegue Automático
 
 ```
-1. Hacer merge del PR a main (o dev, según la etapa).
-2. Vercel detecta el push automáticamente.
-3. Ejecuta: npm run build
-4. Si el build es exitoso, despliega la nueva versión.
-5. Verificar en la URL de producción que todo funciona.
-6. En caso de error: revisar los logs de build en el dashboard de Vercel.
+GitHub (push a main)
+    │
+    ├──▶ Vercel (frontend)
+    │        └─ npm run build → Deploy en https://e-meet-frontend-nine.vercel.app/
+    │
+    └──▶ Render (backend)
+             └─ npm run build (tsc) → node dist/server.js
+                Deploy en https://emeet-backend-supabase-p0i6.onrender.com
 ```
 
 ### Verificación post-despliegue
 
-- [ ] La página raíz carga correctamente.
-- [ ] El login con email funciona.
-- [ ] El feed de swipe carga lugares (con API key de Google Maps).
-- [ ] El chat en tiempo real funciona (con Supabase configurado).
-- [ ] Las rutas protegidas redirigen correctamente.
-- [ ] Las variables de entorno están configuradas en producción.
-
----
-
-## 8. Ambiente de Pruebas (Staging)
-
-> ⏳ **Pendiente por validar**: si existe un ambiente de staging separado.
-
-**Recomendación**: Usar las Preview URLs de Vercel (generadas automáticamente en cada PR) como ambiente de staging. Configurar un proyecto Supabase separado para pruebas si es posible.
+- [ ] `GET /health` responde `{ ok: true }`.
+- [ ] Login y registro con email funcionan.
+- [ ] El feed carga lugares (Google Maps + `/places`).
+- [ ] Chat en tiempo real funciona (Supabase Realtime).
+- [ ] Rutas protegidas redirigen correctamente según rol.
+- [ ] Pagos con Mercado Pago / Transbank responden (`/monetization`).
+- [ ] Variables de entorno configuradas en Vercel y Render.
 
 ---
 
@@ -155,21 +184,9 @@ Las mismas variables deben configurarse en la plataforma de despliegue. En Verce
 
 | Evidencia | Descripción |
 |---|---|
-| Captura del dashboard de Supabase | Mostrar las tablas con datos reales |
-| Captura del proyecto en Vercel | Mostrar el despliegue exitoso (si aplica) |
-| URL de la aplicación desplegada | URL pública de la app en producción o staging |
+| Captura del dashboard de Supabase | Mostrar las 14 tablas con datos reales |
+| Captura del proyecto en Vercel | URL de producción del frontend desplegado |
+| Captura del servicio en Render | Backend desplegado con logs de ejecución |
+| URL de la aplicación desplegada | https://e-meet-frontend-nine.vercel.app/ |
 | Variables de entorno configuradas | Captura de la configuración (sin mostrar los valores) |
-| Historial de deploys | Captura del historial de deployments en Vercel |
-
----
-
-## 10. Información Pendiente por Validar
-
-| Elemento | Estado |
-|---|---|
-| Plataforma de despliegue del backend | ⏳ Pendiente — requiere acceso a `eMeet_Backend_Supabase` |
-| URL pública de la aplicación en producción | ⏳ Pendiente |
-| Configuración de dominio personalizado | ⏳ Pendiente |
-| CI/CD configurado (GitHub Actions, etc.) | ⏳ Pendiente — no detectado en `eMeet_frontend` |
-| Ambiente de staging separado | ⏳ Pendiente |
-| Plan de Supabase activo (Free vs Pro) | ⏳ Pendiente — verificar en dashboard |
+| Resultado de `GET /health` | Respuesta JSON confirmando el backend activo |

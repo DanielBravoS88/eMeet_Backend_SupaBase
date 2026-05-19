@@ -4,11 +4,11 @@
 
 ## 1. Tipo de Arquitectura
 
-El sistema eMeet adopta una arquitectura de **tres capas con BFF (Backend For Frontend)**, combinando elementos de arquitectura orientada a microservicios lógicos:
+El sistema eMeet adopta una arquitectura de **tres capas directa sin BFF**:
 
-- **Capa de Presentación**: frontend Next.js 14 App Router con componentes React.
-- **Capa de Lógica de Negocio / BFF**: Route Handlers y Server Actions dentro de Next.js, que actúan como intermediarios seguros entre el frontend y los servicios externos.
-- **Capa de Datos**: Supabase PostgreSQL, gestionada en parte directamente por el frontend (cliente Supabase) y en parte por el backend `eMeet_Backend_Supabase`.
+- **Capa de Presentación**: frontend Next.js 14 App Router con componentes React. Se comunica directamente con el backend Express mediante `fetchApi()` + Bearer JWT.
+- **Capa de Lógica de Negocio**: backend `eMeet_Backend_Supabase` (Express.js en Render). Concentra toda la lógica de negocio, seguridad y proxy de servicios externos. Los Route Handlers de Next.js (`app/api/`) manejan exclusivamente operaciones admin con Service Role Key, el proxy de Deezer y el callback OAuth — no actúan como BFF general.
+- **Capa de Datos**: Supabase PostgreSQL (14 tablas), con Auth JWT, Realtime WebSocket y Storage. El frontend accede directamente a Supabase Auth y Realtime; el backend accede a Supabase para CRUD de datos.
 
 ---
 
@@ -28,27 +28,43 @@ El sistema eMeet adopta una arquitectura de **tres capas con BFF (Backend For Fr
 
 ### 2.2 Backend — `eMeet_Backend_Supabase`
 
-> ⏳ **Pendiente por validar**: El repositorio `eMeet_Backend_Supabase` no estuvo disponible para análisis directo. La siguiente información se infiere desde las llamadas del frontend.
+**URL de producción**: https://emeet-backend-supabase-p0i6.onrender.com
 
-El backend expone endpoints REST que son consumidos por el frontend a través de la variable de entorno `NEXT_PUBLIC_BACKEND_URL`. Se identificaron los siguientes grupos de endpoints:
+| Componente | Tecnología | Descripción |
+|---|---|---|
+| Framework | Express.js 4.21 | API REST |
+| Runtime | Node.js 20 | Servidor |
+| Lenguaje | TypeScript 5.6 | Tipado estático |
+| ORM | Prisma 6.19 | Operaciones relacionales en PostgreSQL |
+| DB Client | Supabase JS Client 2.56 | Auth, RPC y Storage |
+| Seguridad | Helmet 8.0 | Headers HTTP seguros |
+| CORS | cors + regex | Dinámico: `FRONTEND_ORIGIN`, localhost y `*.vercel.app` |
+| Logging | Morgan 1.10 | Request logging |
+| Testing | Vitest 4.1 + Supertest | Tests unitarios e integración |
 
-| Grupo | Endpoints detectados |
+**Grupos de rutas confirmados (src/app.ts)**:
+
+| Ruta | Funcionalidad |
 |---|---|
-| Autenticación | `POST /auth/login`, `POST /auth/register`, `POST /auth/logout` |
-| Perfil | `GET /profile`, `PATCH /profile` |
-| Eventos de usuario | `GET /events/liked`, `GET /events/saved` |
-| Chat | `GET /chat/rooms`, `POST /chat/rooms/:id/join`, `GET /chat/rooms/:id/messages`, `POST /chat/rooms/:id/messages`, `POST /chat/rooms/:id/read` |
-| Locatario | `GET /events/locatario`, `POST /events/locatario`, `DELETE /events/locatario/:id` |
-| Admin | `GET /admin/stats`, `GET /admin/reports`, `PATCH /admin/reports/:id` |
+| `GET /health` | Health check del servicio |
+| `/auth` | login, register, logout, reset-password |
+| `/profile` | GET y PATCH de perfil, subida de avatar |
+| `/events` | like, save, CRUD de eventos de locatario |
+| `/chat` | rooms, messages, join, read |
+| `/places` | search-nearby, photo proxy de Google Maps |
+| `/admin` | stats, reports, gestión de usuarios |
+| `/monetization` | tokens, pagos, QR, cupones, campañas |
 
 ### 2.3 Supabase (plataforma backend)
 
+**Proyecto**: ksghpwonmnxmbhmfpaog
+
 | Servicio | Uso en el sistema |
 |---|---|
-| **Auth** | Registro, login, OAuth (Google/Apple), verificación de email, tokens JWT |
-| **PostgreSQL** | Tablas: `profiles`, `user_events`, `chat_rooms`, `room_members`, `chat_messages`, `locatario_events` |
-| **Realtime** | Suscripción a INSERT en `chat_messages` para chat en tiempo real |
-| **Storage** | Imágenes de perfil y eventos (confirmado por hooks `useImageUpload`, `useVideoUpload`) |
+| **Auth** | Registro, login, OAuth (Google/Apple), verificación de email, tokens JWT RS256 |
+| **PostgreSQL** | 14 tablas: `profiles`, `user_events`, `chat_rooms`, `room_members`, `chat_messages`, `locatario_events`, `token_wallets`, `token_transactions`, `payment_orders`, `promotion_campaigns`, `coupons`, `transactions`, `reports`, `qr_validations` |
+| **Realtime** | Suscripción a `postgres_changes` en `chat_messages` para chat en tiempo real (WebSocket) |
+| **Storage** | Buckets: `avatars`, `event-images`, `event-videos` |
 | **SSR** | Cookie-based sessions con `@supabase/ssr` en middleware Next.js |
 
 ---
@@ -79,19 +95,23 @@ La capa de presentación corresponde al repositorio `eMeet_frontend`. Es una apl
 
 ---
 
-## 4. Capa de Lógica de Negocio (BFF)
+## 4. Capa de Lógica de Negocio (Backend Express)
 
-Los Route Handlers de Next.js (`app/api/`) actúan como una capa BFF que delega las solicitudes al backend externo `eMeet_Backend_Supabase`, añadiendo el encabezado `Authorization` desde la sesión del cliente.
+La lógica de negocio centralizada reside en `eMeet_Backend_SupaBase` (Express.js, Render). El frontend consume el backend directamente mediante `fetchApi()` + Bearer JWT desde sus contextos globales. Los Route Handlers de Next.js (`app/api/`) son auxiliares específicos — no actúan como BFF general.
 
-### Route Handlers detectados:
+### Route Handlers del frontend (app/api/) — uso específico:
 
 ```
 app/api/
   admin/
-    stats/route.ts          ← GET /admin/stats
-    reports/route.ts        ← GET/POST /admin/reports
-    reports/[id]/route.ts   ← PATCH /admin/reports/:id
-    finance/route.ts        ← GET /admin/finance
+    stats/route.ts          ← Supabase Service Role Key (operaciones admin)
+    reports/route.ts        ← Supabase Service Role Key
+    reports/[id]/route.ts   ← Supabase Service Role Key
+    finance/route.ts        ← Supabase Service Role Key
+  deezer/
+    route.ts                ← Proxy hacia Deezer API (música ambiental)
+  keepalive/
+    route.ts                ← Keep-alive del backend en Render
   auth/
     callback/route.ts       ← Callback OAuth de Supabase
 ```
@@ -172,6 +192,84 @@ Las siguientes tablas fueron confirmadas directamente desde el archivo `src/lib/
 | organizer_avatar | TEXT (null) | Avatar del organizador |
 | created_at | TIMESTAMPTZ | Fecha de creación |
 
+#### Tabla `token_wallets`
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | UUID | PK |
+| user_id | UUID | FK → profiles.id |
+| balance | INTEGER | Saldo de tokens disponibles |
+| updated_at | TIMESTAMPTZ | Última actualización |
+
+#### Tabla `token_transactions`
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | UUID | PK |
+| wallet_id | UUID | FK → token_wallets.id |
+| amount | INTEGER | Cantidad de tokens (positivo/negativo) |
+| type | TEXT | Tipo de transacción |
+| description | TEXT (null) | Detalle de la transacción |
+| created_at | TIMESTAMPTZ | Fecha |
+
+#### Tabla `payment_orders`
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | UUID | PK |
+| user_id | UUID | FK → profiles.id |
+| amount | NUMERIC | Monto en CLP |
+| currency | TEXT | Moneda (CLP) |
+| status | TEXT | Estado del pago |
+| provider | TEXT | `mercadopago` \| `transbank` |
+| external_id | TEXT (null) | ID externo del proveedor |
+| created_at | TIMESTAMPTZ | Fecha |
+
+#### Tabla `promotion_campaigns`
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | UUID | PK |
+| creator_id | UUID | FK → profiles.id |
+| title | TEXT | Nombre de la campaña |
+| budget_tokens | INTEGER | Presupuesto en tokens |
+| status | TEXT | Estado de la campaña |
+| created_at | TIMESTAMPTZ | Fecha |
+
+#### Tabla `coupons`
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | UUID | PK |
+| code | TEXT | Código único del cupón |
+| discount | NUMERIC | Descuento aplicado |
+| used_by | UUID (null) | FK → profiles.id |
+| used_at | TIMESTAMPTZ (null) | Fecha de uso |
+| expires_at | TIMESTAMPTZ | Expiración |
+
+#### Tabla `transactions`
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | UUID | PK |
+| user_id | UUID | FK → profiles.id |
+| type | TEXT | Tipo de operación |
+| amount | NUMERIC | Monto |
+| status | TEXT | Estado |
+| created_at | TIMESTAMPTZ | Fecha |
+
+#### Tabla `reports`
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | UUID | PK |
+| reporter_id | UUID | FK → profiles.id |
+| reported_user_id | UUID (null) | FK → profiles.id |
+| reason | TEXT | Motivo del reporte |
+| status | TEXT | `pending` \| `resolved` \| `dismissed` |
+| created_at | TIMESTAMPTZ | Fecha |
+
+#### Tabla `qr_validations`
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | UUID | PK |
+| coupon_id | UUID | FK → coupons.id |
+| validated_by | UUID | FK → profiles.id |
+| validated_at | TIMESTAMPTZ | Fecha de validación |
+
 ---
 
 ## 6. Contextos Globales del Frontend
@@ -240,13 +338,15 @@ Las siguientes variables de entorno fueron identificadas directamente en el cód
 
 ## 9. Integraciones Externas
 
-| Integración | Tipo | Descripción |
-|---|---|---|
-| **Supabase** | Backend as a Service | Auth, DB, Realtime, Storage |
-| **Google Maps Platform** | API externa | Maps JavaScript API + Places API |
-| **eMeet_Backend_Supabase** | API REST propia | Lógica de negocio, validaciones, endpoints REST |
-| **OAuth Google** | Proveedor de identidad | Login con cuenta Google |
-| **OAuth Apple** | Proveedor de identidad | Login con Apple ID |
+| Integración | Tipo | Acceso | Descripción |
+|---|---|---|---|
+| **Supabase** | Backend as a Service | Frontend + Backend | Auth JWT, PostgreSQL, Realtime WebSocket, Storage |
+| **Google Maps Platform** | API externa | Backend (`/places`) | Maps JavaScript API (frontend visual) + Places API proxied por backend |
+| **Mercado Pago** | Pasarela de pago | Backend (`/monetization`) | Checkout + Webhook de confirmación |
+| **Transbank WebPay Plus** | Pasarela de pago | Backend (`/monetization`) | Pagos con tarjeta en Chile |
+| **Deezer API** | API de música | Frontend Route Handler (`/api/deezer`) | Proxy de música ambiental |
+| **OAuth Google** | Proveedor de identidad | Frontend + Supabase Auth | Login con cuenta Google |
+| **OAuth Apple** | Proveedor de identidad | Frontend + Supabase Auth | Login con Apple ID |
 
 ---
 
@@ -256,54 +356,65 @@ Las siguientes variables de entorno fueron identificadas directamente en el cód
 flowchart TD
     U[Usuario / Navegador] -->|HTTPS| FE
 
-    subgraph FE [eMeet_frontend — Next.js 14]
+    subgraph FE [eMeet_frontend — Next.js 14 · Vercel]
         direction TB
-        APP[App Router / Páginas]
-        CTX[Contextos: Auth · Chat · NearbyPlaces · LocatarioEvents]
-        BFF[Route Handlers BFF — app/api/]
-        MW[Middleware de sesión y roles]
+        MW[Middleware Next.js\nProtección de rutas · Roles]
+        APP[App Router / Páginas\nFeed · Chat · Perfil · Admin · Locatario]
+        CTX[Contextos Globales\nAuth · Chat · NearbyPlaces · LocatarioEvents]
+        RH[Route Handlers app/api/\nadmin con Service Role · deezer proxy · keepalive · OAuth callback]
     end
 
+    MW --> APP
     APP --> CTX
-    APP --> BFF
-    MW -->|Valida sesión| SA
+    APP --> RH
 
-    BFF -->|Bearer JWT| BACK
-    CTX -->|Bearer JWT| BACK
-    CTX -->|anon key| SA
+    CTX -->|fetchApi — Bearer JWT| BACK
+    RH -->|Service Role Key| SA
+    RH -->|HTTP proxy| DZ[Deezer API]
 
-    subgraph BACK [eMeet_Backend_Supabase]
-        direction TB
-        API[API REST]
-        BL[Lógica de negocio]
-        API --> BL
+    subgraph BACK [eMeet_Backend_SupaBase — Express.js · Render]
+        direction LR
+        AUTH[/auth\nlogin · register\nlogout · reset-pwd]
+        PROF[/profile\nGET · PATCH · avatar]
+        EVT[/events\nlike · save · CRUD]
+        CHAT[/chat\nrooms · messages\njoin · read]
+        PLC[/places\nsearch-nearby\nphoto proxy]
+        ADM[/admin\nstats · reports\ngestión]
+        MON[/monetization\ntokens · pagos\nQR · coupons]
     end
 
-    BL -->|SQL| DB
+    CTX -->|signIn · OAuth| SA
+    CTX -->|WebSocket postgres_changes| RT
 
     subgraph SUP [Supabase — ksghpwonmnxmbhmfpaog]
         direction TB
-        SA[Auth — JWT / OAuth]
-        DB[(PostgreSQL)]
-        RT[Realtime — WebSockets]
-        ST[Storage — Archivos]
+        SA[Auth\nJWT RS256 · OAuth Google/Apple]
+        DB[(PostgreSQL\n14 tablas)]
+        RT[Realtime\nWebSocket]
+        ST[Storage\navatars · event-images · event-videos]
     end
 
-    CTX -->|Suscripción Realtime| RT
-    BL -->|Avatares / imágenes| ST
+    BACK -->|Supabase JS Client| DB
+    BACK -->|Supabase JS Client| SA
+    BACK -->|SDK upload| ST
+    DB -->|CDC triggers| RT
 
-    CTX -->|API key| GM[Google Maps Platform\nPlaces API]
+    PLC -->|HTTP| GM[Google Maps Platform\nPlaces API + Photo Proxy]
+    MON -->|SDK| MP[Mercado Pago\nCheckout + Webhook]
+    MON -->|HTTP| TB[Transbank\nWebPay Plus]
 ```
 
 ---
 
-## 11. Información Pendiente por Validar
+## 11. Información Confirmada
 
-| Elemento | Estado |
-|---|---|
-| Estructura interna de `eMeet_Backend_Supabase` | ⏳ Pendiente |
-| Configuración de RLS en Supabase | ⏳ Pendiente |
-| ORM utilizado en el backend (Prisma u otro) | ⏳ Pendiente |
-| Esquema SQL completo (migraciones) | ⏳ Pendiente |
-| URL pública de producción del sistema | ⏳ Pendiente |
-| Configuración de CI/CD del backend | ⏳ Pendiente |
+| Elemento | Estado | Detalle |
+|---|---|---|
+| Estructura interna de `eMeet_Backend_SupaBase` | ✅ Confirmado | Express.js con `src/routes/`, `src/middleware/`, `src/services/`, `src/config/`, `src/lib/`, `src/schemas/`, `src/utils/`, `src/types/`, `src/constants/` |
+| ORM utilizado en el backend | ✅ Confirmado | Prisma 6.19 (en `dependencies`) + Supabase JS Client 2.56 |
+| Esquema SQL — 14 tablas | ✅ Confirmado | Ver Sección 5 de este documento y [MER.md](./MER.md) |
+| URL pública frontend | ✅ Confirmado | https://e-meet-frontend-nine.vercel.app/ |
+| URL pública backend | ✅ Confirmado | https://emeet-backend-supabase-p0i6.onrender.com |
+| CI/CD del backend | ✅ Confirmado | GitHub → Render, automático desde rama `main` |
+| CI/CD del frontend | ✅ Confirmado | GitHub → Vercel, automático desde rama `main` |
+| Tests del backend | ✅ Confirmado | Vitest 4.1 + Supertest: `auth.test.ts`, `auth.routes.test.ts`, `chatService.test.ts`, `http.test.ts` |
