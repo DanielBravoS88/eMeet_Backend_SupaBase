@@ -22,4 +22,7 @@ export const env = {
   TRANSBANK_ENV: (process.env.TRANSBANK_ENV ?? 'integration') as 'integration' | 'production',
   TRANSBANK_COMMERCE_CODE: process.env.TRANSBANK_COMMERCE_CODE ?? '',
   TRANSBANK_API_KEY: process.env.TRANSBANK_API_KEY ?? '',
+  CLEANUP_ENABLED: (process.env.CLEANUP_ENABLED ?? 'true').toLowerCase() === 'true',
+  CLEANUP_INTERVAL_MINUTES: Number(process.env.CLEANUP_INTERVAL_MINUTES ?? 1440),
+  CLEANUP_RUN_ON_START: (process.env.CLEANUP_RUN_ON_START ?? 'true').toLowerCase() === 'true',
 }
