@@ -28,11 +28,13 @@ const allowedOrigins = new Set(
 
 // Permite cualquier subdominio de vercel.app (preview deployments)
 const VERCEL_ORIGIN_RE = /^https:\/\/[a-z0-9-]+(\.vercel\.app)$/i
+// Permite cualquier puerto de localhost en desarrollo
+const LOCALHOST_RE = /^http:\/\/localhost:\d+$/
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.has(origin) || VERCEL_ORIGIN_RE.test(origin)) {
+      if (!origin || allowedOrigins.has(origin) || VERCEL_ORIGIN_RE.test(origin) || LOCALHOST_RE.test(origin)) {
         callback(null, true)
         return
       }
