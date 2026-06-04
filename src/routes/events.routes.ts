@@ -262,6 +262,7 @@ router.post('/locatario', requireEventCreator, async (req, res) => {
     image_url?: string | null
     video_url?: string | null
     audio_preview_url?: string | null
+    audio_track_id?: string | null
     organizer_name?: string
     organizer_avatar?: string | null
     lat?: number | null
@@ -306,6 +307,7 @@ router.post('/locatario', requireEventCreator, async (req, res) => {
       image_url: body.image_url?.trim() || null,
       video_url: body.video_url?.trim() || null,
       audio_preview_url: body.audio_preview_url?.trim() || null,
+      audio_track_id: body.audio_track_id?.trim() || null,
       organizer_name: body.organizer_name ?? '',
       organizer_avatar: body.organizer_avatar ?? null,
       lat,
