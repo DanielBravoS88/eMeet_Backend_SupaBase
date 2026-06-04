@@ -6,16 +6,18 @@ import type { User } from '@supabase/supabase-js'
 
 const router = Router()
 
-function readRoleBucket(value: unknown): 'admin' | 'locatario' | 'user' | undefined {
+function readRoleBucket(value: unknown): 'admin' | 'user' | undefined {
   if (!value || typeof value !== 'object') return undefined
   const role = (value as { role?: unknown }).role
-  if (role === 'admin' || role === 'locatario' || role === 'user') {
+  // 'locatario' es legacy: se promueve a 'user' (la flag is_event_creator distingue)
+  if (role === 'locatario') return 'user'
+  if (role === 'admin' || role === 'user') {
     return role
   }
   return undefined
 }
 
-function extractRole(user: User | null | undefined): 'admin' | 'locatario' | 'user' | undefined {
+function extractRole(user: User | null | undefined): 'admin' | 'user' | undefined {
   if (!user) return undefined
 
   const appRole = readRoleBucket(user.app_metadata)

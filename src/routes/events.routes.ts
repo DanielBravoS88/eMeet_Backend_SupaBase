@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { createServiceRoleClient } from '../lib/supabase'
-import { requireRole, withAuth } from '../middleware/auth'
+import { requireEventCreator, withAuth } from '../middleware/auth'
 import { badRequest, serverError } from '../utils/http'
 import { cleanupEmptyRoom } from '../services/chatService'
 
@@ -237,7 +237,7 @@ router.get('/saved', async (req, res) => {
   return res.json(data)
 })
 
-router.get('/locatario', requireRole('locatario'), async (req, res) => {
+router.get('/locatario', requireEventCreator, async (req, res) => {
   const { data, error } = await serviceSupabase
     .from('locatario_events')
     .select('*')
@@ -251,7 +251,7 @@ router.get('/locatario', requireRole('locatario'), async (req, res) => {
   return res.json(data ?? [])
 })
 
-router.post('/locatario', requireRole('locatario'), async (req, res) => {
+router.post('/locatario', requireEventCreator, async (req, res) => {
   const body = req.body as {
     title?: string
     description?: string
@@ -321,7 +321,7 @@ router.post('/locatario', requireRole('locatario'), async (req, res) => {
   return res.status(201).json(data)
 })
 
-router.delete('/locatario/:id', requireRole('locatario'), async (req, res) => {
+router.delete('/locatario/:id', requireEventCreator, async (req, res) => {
   const { id } = req.params
 
   const { error } = await serviceSupabase

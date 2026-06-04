@@ -9,6 +9,7 @@ declare global {
     interface AuthProfile {
       id: string
       role: UserRole
+      is_event_creator: boolean
       business_name: string | null
       business_location: string | null
     }

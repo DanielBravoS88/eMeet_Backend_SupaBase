@@ -26,13 +26,14 @@ router.post('/login', async (req, res) => {
 })
 
 router.post('/register', async (req, res) => {
-  const { name, email, password, role, businessName, businessLocation, bio } = req.body as {
+  // Modelo unificado: todo registro publico crea una cuenta 'user'.
+  // La capacidad de crear eventos (antes rol 'locatario') ahora es la flag
+  // is_event_creator, que el usuario activa desde su perfil (modo creador).
+  const { name, email, password, role, bio } = req.body as {
     name?: string
     email?: string
     password?: string
-    role?: 'user' | 'locatario' | 'admin'
-    businessName?: string
-    businessLocation?: string
+    role?: 'user' | 'admin'
     bio?: string
   }
 
@@ -48,14 +49,6 @@ router.post('/register', async (req, res) => {
     return badRequest(res, 'No se puede crear una cuenta admin desde el registro publico.')
   }
 
-  const profileRole = role === 'locatario' ? 'locatario' : 'user'
-  const cleanBusinessName = profileRole === 'locatario' ? businessName?.trim() || null : null
-  const cleanBusinessLocation = profileRole === 'locatario' ? businessLocation?.trim() || null : null
-
-  if (profileRole === 'locatario' && !cleanBusinessName) {
-    return badRequest(res, 'Nombre del negocio es obligatorio para locatarios.')
-  }
-
   const supabase = createAnonClient()
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -63,9 +56,8 @@ router.post('/register', async (req, res) => {
     options: {
       data: {
         name,
-        role: profileRole,
-        business_name: cleanBusinessName,
-        business_location: cleanBusinessLocation,
+        role: 'user',
+        is_event_creator: false,
         bio: bio?.trim() || '',
       },
     },
@@ -83,10 +75,9 @@ router.post('/register', async (req, res) => {
         {
           id: data.user.id,
           name,
-          role: profileRole,
+          role: 'user',
+          is_event_creator: false,
           bio: bio?.trim() || '',
-          business_name: cleanBusinessName,
-          business_location: cleanBusinessLocation,
         },
         { onConflict: 'id' },
       )
