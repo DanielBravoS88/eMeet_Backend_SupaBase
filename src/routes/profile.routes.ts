@@ -60,7 +60,7 @@ router.get('/', async (req, res) => {
 })
 
 router.patch('/', async (req, res) => {
-  const { name, bio, avatar_url, location, interests, business_name, business_location } = req.body as {
+  const { name, bio, avatar_url, location, interests, business_name, business_location, is_event_creator } = req.body as {
     name?: string
     bio?: string
     avatar_url?: string | null
@@ -68,6 +68,7 @@ router.patch('/', async (req, res) => {
     interests?: EventCategory[]
     business_name?: string | null
     business_location?: string | null
+    is_event_creator?: boolean
   }
 
   const payload: {
@@ -78,6 +79,7 @@ router.patch('/', async (req, res) => {
     interests?: EventCategory[]
     business_name?: string | null
     business_location?: string | null
+    is_event_creator?: boolean
   } = {}
 
   if (typeof name === 'string') payload.name = name
@@ -87,6 +89,7 @@ router.patch('/', async (req, res) => {
   if (Array.isArray(interests)) payload.interests = interests
   if (typeof business_name === 'string' || business_name === null) payload.business_name = business_name
   if (typeof business_location === 'string' || business_location === null) payload.business_location = business_location
+  if (typeof is_event_creator === 'boolean') payload.is_event_creator = is_event_creator
 
   if (Object.keys(payload).length === 0) {
     return badRequest(res, 'No hay campos para actualizar.')
@@ -101,6 +104,24 @@ router.patch('/', async (req, res) => {
 
   if (error) {
     return serverError(res, 'No se pudo actualizar el perfil.')
+  }
+
+  // Si cambió is_event_creator, sincronizamos auth.users user_metadata para que
+  // el middleware (que lee del JWT) vea el cambio sin requerir refresh manual.
+  if (typeof is_event_creator === 'boolean') {
+    const metadataPatch: Record<string, unknown> = { is_event_creator }
+    if (typeof business_name === 'string' || business_name === null) {
+      metadataPatch.business_name = business_name
+    }
+    if (typeof business_location === 'string' || business_location === null) {
+      metadataPatch.business_location = business_location
+    }
+    await serviceSupabase.auth.admin.updateUserById(req.authUser!.id, {
+      user_metadata: metadataPatch,
+    }).catch((err) => {
+      // No bloqueamos la respuesta — el profile ya quedó actualizado.
+      console.error('[profile PATCH] fallo al sincronizar user_metadata:', err)
+    })
   }
 
   return res.json(data)

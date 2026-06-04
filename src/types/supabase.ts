@@ -8,7 +8,7 @@ export type EventCategory =
   | 'teatro'
   | 'arte'
 
-export type UserRole = 'user' | 'admin' | 'locatario'
+export type UserRole = 'user' | 'admin'
 
 export type Json =
   | string
@@ -29,6 +29,7 @@ export interface Database {
           avatar_url: string | null
           location: string
           role: UserRole
+          is_event_creator: boolean
           business_name: string | null
           business_location: string | null
           interests: EventCategory[]
@@ -41,6 +42,7 @@ export interface Database {
           avatar_url?: string | null
           location?: string
           role?: UserRole
+          is_event_creator?: boolean
           business_name?: string | null
           business_location?: string | null
           interests?: EventCategory[]
@@ -52,6 +54,7 @@ export interface Database {
           avatar_url?: string | null
           location?: string
           role?: UserRole
+          is_event_creator?: boolean
           business_name?: string | null
           business_location?: string | null
           interests?: EventCategory[]

@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { PROMOTION_COSTS, TOKEN_PACKS } from '../constants/monetization'
 import { env } from '../config/env'
 import { createServiceRoleClient } from '../lib/supabase'
-import { requireRole, withAuth } from '../middleware/auth'
+import { requireEventCreator, withAuth } from '../middleware/auth'
 import {
   parseActivatePromotionInput,
   parseConfirmMercadoPagoInput,
@@ -484,7 +484,7 @@ router.get('/packs', (_req, res) => {
   return res.json(Object.values(TOKEN_PACKS))
 })
 
-router.use(withAuth, requireRole('locatario'))
+router.use(withAuth, requireEventCreator)
 
 router.get('/wallet', async (req, res) => {
   try {
