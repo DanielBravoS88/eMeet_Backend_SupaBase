@@ -237,7 +237,10 @@ router.get('/saved', async (req, res) => {
   return res.json(data)
 })
 
-router.get('/locatario', requireEventCreator, async (req, res) => {
+// Listar los eventos propios NO requiere modo creador: filtra por creator_id,
+// así que un usuario sin eventos simplemente recibe []. Evita un 403 innecesario
+// (que el navegador registra en consola) al cargar el feed.
+router.get('/locatario', async (req, res) => {
   const { data, error } = await serviceSupabase
     .from('locatario_events')
     .select('*')
