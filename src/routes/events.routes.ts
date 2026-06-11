@@ -315,6 +315,11 @@ router.post('/locatario', requireEventCreator, async (req, res) => {
       organizer_avatar: body.organizer_avatar ?? null,
       lat,
       lng,
+      // Opcion A: publicar directo. La columna `status` defaultea a 'draft'
+      // pero el feed publico no filtra por status, asi que dejarlo como draft
+      // confunde. Hasta que exista un flujo de borradores en el panel del
+      // creador, todo evento creado se publica inmediatamente.
+      status: 'live',
     })
     .select('*')
     .single()
