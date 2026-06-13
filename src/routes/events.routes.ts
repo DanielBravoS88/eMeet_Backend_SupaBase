@@ -254,6 +254,101 @@ router.get('/locatario', async (req, res) => {
   return res.json(data ?? [])
 })
 
+/**
+ * Estadísticas agregadas de los eventos del creador autenticado.
+ *
+ * Devuelve, para cada evento propio:
+ *   • likes (cuántos usuarios dieron 'Voy' / me interesa)
+ *   • chatMembers (cuántos están en el chat del evento)
+ *
+ * Más totales globales:
+ *   • totalLikes — suma de likes en todos sus eventos
+ *   • totalChatMembers — suma de miembros (descontando al propio creador)
+ *   • topEventId — el evento con más likes (null si no hay)
+ *
+ * Implementación: dos queries livianas a user_events y room_members usando
+ * el service role (las queries con count exact = 0 evitan traer filas).
+ */
+router.get('/locatario/stats', async (req, res) => {
+  const creatorId = req.authUser!.id
+
+  // 1) IDs de los eventos del creador.
+  const { data: myEvents, error: eventsError } = await serviceSupabase
+    .from('locatario_events')
+    .select('id')
+    .eq('creator_id', creatorId)
+
+  if (eventsError) {
+    return serverError(res, 'No se pudieron obtener los eventos del creador.')
+  }
+
+  const eventIds = (myEvents ?? []).map((e) => e.id as string)
+
+  if (eventIds.length === 0) {
+    return res.json({
+      likesByEvent: {},
+      chatMembersByEvent: {},
+      totalLikes: 0,
+      totalChatMembers: 0,
+      topEventId: null,
+    })
+  }
+
+  // 2) Likes recibidos por cada evento.
+  const { data: likeRows, error: likesError } = await serviceSupabase
+    .from('user_events')
+    .select('event_id')
+    .eq('action', 'like')
+    .in('event_id', eventIds)
+
+  if (likesError) {
+    return serverError(res, 'No se pudieron contar los interesados.')
+  }
+
+  const likesByEvent: Record<string, number> = {}
+  for (const row of likeRows ?? []) {
+    const id = row.event_id as string
+    likesByEvent[id] = (likesByEvent[id] ?? 0) + 1
+  }
+
+  // 3) Miembros de los chats (sin contar al creador, que se auto-une).
+  const { data: memberRows, error: membersError } = await serviceSupabase
+    .from('room_members')
+    .select('room_id, user_id')
+    .in('room_id', eventIds)
+
+  if (membersError) {
+    return serverError(res, 'No se pudieron contar los miembros de los chats.')
+  }
+
+  const chatMembersByEvent: Record<string, number> = {}
+  for (const row of memberRows ?? []) {
+    if (row.user_id === creatorId) continue
+    const id = row.room_id as string
+    chatMembersByEvent[id] = (chatMembersByEvent[id] ?? 0) + 1
+  }
+
+  const totalLikes = Object.values(likesByEvent).reduce((a, b) => a + b, 0)
+  const totalChatMembers = Object.values(chatMembersByEvent).reduce((a, b) => a + b, 0)
+
+  let topEventId: string | null = null
+  let topLikes = 0
+  for (const [id, count] of Object.entries(likesByEvent)) {
+    if (count > topLikes) {
+      topLikes = count
+      topEventId = id
+    }
+  }
+
+  return res.json({
+    likesByEvent,
+    chatMembersByEvent,
+    totalLikes,
+    totalChatMembers,
+    topEventId,
+  })
+})
+
 router.post('/locatario', requireEventCreator, async (req, res) => {
   const body = req.body as {
     title?: string
