@@ -94,6 +94,7 @@ Los datos de **lugares cercanos** provienen de **Google Places API** y no se alm
 | `image_url` | TEXT | NULL | URL de la imagen del evento |
 | `organizer_name` | TEXT | DEFAULT '' | Nombre del organizador |
 | `organizer_avatar` | TEXT | NULL | Avatar del organizador |
+| `status` | TEXT | DEFAULT 'draft' | Estado del evento: `draft \| live`. Al crear desde el Modo Creador se publica directo en `live` |
 | `created_at` | TIMESTAMPTZ | DEFAULT now() | Fecha de publicación |
 
 ---
@@ -286,6 +287,7 @@ erDiagram
         text image_url
         text organizer_name
         text organizer_avatar
+        text status
         timestamptz created_at
     }
 

@@ -162,8 +162,10 @@ El backend Express.js está completamente implementado y desplegado en Render: h
 | `PATCH /profile` | Actualizar perfil + avatar | ✅ Implementado |
 | `GET /events/liked` | Eventos con like del usuario | ✅ Implementado |
 | `GET /events/saved` | Eventos guardados del usuario | ✅ Implementado |
-| `POST /events/locatario` | Crear evento de locatario | ✅ Implementado |
+| `POST /events/locatario` | Crear evento de locatario (se publica directo en estado `live`) | ✅ Implementado |
 | `GET /events/locatario` | Listar eventos del locatario | ✅ Implementado |
+| `GET /events/locatario/public` | Listar eventos públicos de locatarios (feed) | ✅ Implementado |
+| `GET /events/locatario/stats` | Stats del creador: likes e integrantes de chat por evento, totales y evento top | ✅ Implementado |
 | `DELETE /events/locatario/:id` | Eliminar evento del locatario | ✅ Implementado |
 | `GET /chat/rooms` | Listar salas de chat | ✅ Implementado |
 | `POST /chat/rooms/:id/join` | Unirse a sala | ✅ Implementado |

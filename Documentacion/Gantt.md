@@ -18,6 +18,7 @@
 | 8 | Pruebas y QA | Pruebas funcionales, revisión de seguridad, correcciones |
 | 9 | Documentación | Informe académico, arquitectura, UML, MER, wireframes, Gantt |
 | 10 | Entrega final | Revisión final, PR a `main`, preparación de entrega académica |
+| 11 | Iteración EP3 (mejoras junio) | Endpoint `/events/locatario/stats` (interesados y miembros de chat), publicación de eventos directo en `live` y soporte al nuevo Modo Creador del frontend |
 
 ---
 
@@ -73,9 +74,9 @@ gantt
     Conexión con eMeet_Backend_SupaBase:done,   bff3, 2026-05-03, 7d
 
     section QA y Pruebas
-    Pruebas funcionales manuales      :active,  qa1, 2026-05-05, 5d
-    Revisión de seguridad             :active,  qa2, 2026-05-08, 3d
-    Correcciones detectadas           :active,  qa3, 2026-05-10, 4d
+    Pruebas funcionales manuales      :done,    qa1, 2026-05-05, 5d
+    Revisión de seguridad             :done,    qa2, 2026-05-08, 3d
+    Correcciones detectadas           :done,    qa3, 2026-05-10, 4d
 
     section Documentación
     Informe académico                 :done,    doc1, 2026-05-05, 4d
@@ -88,6 +89,12 @@ gantt
     Revisión final del PR             :done,    ent1, 2026-05-12, 2d
     PR hacia main/dev                 :done,    ent2, 2026-05-13, 1d
     Entrega académica                 :milestone, ent3, 2026-05-14, 0d
+
+    section Iteración EP3 (Mejoras Junio)
+    Publicar eventos directo en 'live'  :done,    ep3_1, 2026-06-08, 1d
+    Endpoint /locatario/stats           :done,    ep3_2, 2026-06-09, 3d
+    Soporte Modo Creador (frontend)     :done,    ep3_3, 2026-06-10, 3d
+    Merge a main (PR #25–#26)           :milestone, ep3_4, 2026-06-13, 0d
 ```
 
 ---
@@ -110,10 +117,13 @@ gantt
 | Paneles | Panel de administrador completo | Francisco Levipil | 20/04/2026 | 25/04/2026 | ✅ Completado |
 | Paneles | Panel de locatario + formulario de evento | Antonio Vivar | 26/04/2026 | 30/04/2026 | ✅ Completado |
 | Backend | Integración con eMeet_Backend_SupaBase | Equipo | 30/04/2026 | 06/05/2026 | ✅ Completado |
-| QA | Pruebas funcionales manuales | Equipo | 05/05/2026 | 09/05/2026 | 🔄 En progreso |
-| QA | Revisión de seguridad y correcciones | Equipo | 08/05/2026 | 13/05/2026 | 🔄 En progreso |
+| QA | Pruebas funcionales manuales | Equipo | 05/05/2026 | 09/05/2026 | ✅ Completado |
+| QA | Revisión de seguridad y correcciones | Equipo | 08/05/2026 | 13/05/2026 | ✅ Completado |
 | Documentación | Estructura académica completa | Equipo | 05/05/2026 | 08/05/2026 | ✅ Completado |
 | Entrega | PR hacia `main`/`dev` + entrega académica | Equipo | 12/05/2026 | 16/05/2026 | ✅ Completado |
+| EP3 | Publicar eventos directo en estado `live` al crear | Equipo | 08/06/2026 | 08/06/2026 | ✅ Completado |
+| EP3 | Endpoint `/events/locatario/stats` (likes + miembros de chat) | Equipo | 09/06/2026 | 11/06/2026 | ✅ Completado |
+| EP3 | Soporte de datos para el Modo Creador del frontend | Equipo | 10/06/2026 | 13/06/2026 | ✅ Completado |
 
 ---
 
