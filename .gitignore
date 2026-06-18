@@ -2,6 +2,9 @@
 node_modules/
 dist/
 
+# Reportes de cobertura de tests (generados, no se commitean)
+coverage/
+
 # Variables de entorno — NUNCA subir al repo
 .env
 .env.*

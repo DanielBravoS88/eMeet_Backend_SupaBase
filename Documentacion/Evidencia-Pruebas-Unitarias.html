@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>eMeet · Backend (Express + Supabase) — Evidencia de pruebas unitarias</title>
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f5f6f8;color:#1b1f24;margin:0;padding:32px;}
+  .wrap{max-width:900px;margin:0 auto;}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px;}
+  h1{font-size:20px;font-weight:600;margin:0;}
+  .sub{font-size:13px;color:#57606a;margin-top:4px;}
+  .ok-badge{background:#e6f4ea;color:#1e7e34;font-size:13px;font-weight:600;padding:5px 14px;border-radius:8px;}
+  .meta{font-size:12px;color:#8a929b;margin-top:6px;text-align:right;}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  .card{background:#fff;border:1px solid #e1e4e8;border-radius:8px;padding:14px;}
+  .card .lbl{font-size:12px;color:#57606a;}
+  .card .val{font-size:24px;font-weight:600;margin-top:2px;}
+  .term{background:#0d1117;color:#c9d1d9;font-family:Consolas,Menlo,monospace;font-size:12.5px;line-height:1.7;border-radius:8px;padding:14px 16px;margin-bottom:24px;overflow-x:auto;}
+  .term .pass{color:#3fb950;font-weight:600;}
+  .term .dim{color:#8b949e;}
+  .suite{background:#fff;border:1px solid #e1e4e8;border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+  .suite-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .file{font-family:Consolas,monospace;font-size:12.5px;}
+  .badge{background:#e6f4ea;color:#1e7e34;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:7px;}
+  .test{display:flex;gap:7px;font-size:12.5px;color:#444c56;line-height:1.5;margin:2px 0;}
+  .chk{color:#2da44e;font-weight:700;flex-shrink:0;}
+  h2{font-size:15px;font-weight:600;margin:24px 0 8px;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;color:#57606a;font-weight:500;padding:6px 8px;border-bottom:1px solid #d0d7de;}
+  td{padding:5px 8px;}
+  td:not(.mono){text-align:right;}
+  th:not(:first-child){text-align:right;}
+  .mono{font-family:Consolas,monospace;}
+  tr.total td{font-weight:600;border-top:1px solid #d0d7de;}
+</style></head><body><div class="wrap">
+  <div class="header">
+    <div><h1>eMeet · Backend (Express + Supabase)</h1><div class="sub">Evidencia de ejecucion de pruebas unitarias — Jest (ts-jest)</div></div>
+    <div><span class="ok-badge">✓ 58 / 58 aprobadas</span><div class="meta">Ejecutado: 17-06-2026 · TPY1101 EP3</div></div>
+  </div>
+  <div class="cards">
+    <div class="card"><div class="lbl">Suites</div><div class="val">4 / 4</div></div>
+    <div class="card"><div class="lbl">Pruebas</div><div class="val">58</div></div>
+    <div class="card"><div class="lbl">Fallos</div><div class="val" style="color:#1e7e34">0</div></div>
+    <div class="card"><div class="lbl">Cobertura líneas</div><div class="val">100%</div></div>
+  </div>
+  <div class="term">
+    <div class="dim">$ npx jest --coverage</div>
+    <div><span class="pass">PASS</span> http.test.ts</div><div><span class="pass">PASS</span> auth.test.ts</div><div><span class="pass">PASS</span> chatService.test.ts</div><div><span class="pass">PASS</span> auth.routes.test.ts</div>
+    <div style="margin-top:8px">Test Suites: <span class="pass">4 passed</span>, 4 total</div>
+    <div>Tests:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="pass">58 passed</span>, 58 total</div>
+  </div>
+  <h2>Detalle de casos de prueba por suite</h2>
+  
+  <div class="suite">
+    <div class="suite-head">
+      <span class="file">📄 http.test.ts</span>
+      <span class="badge">7/7</span>
+    </div>
+    <div class="test"><span class="chk">✓</span><span>http utils badRequest responde 400 con mensaje</span></div><div class="test"><span class="chk">✓</span><span>http utils unauthorized usa mensaje por defecto</span></div><div class="test"><span class="chk">✓</span><span>http utils unauthorized acepta mensaje personalizado</span></div><div class="test"><span class="chk">✓</span><span>http utils serverError usa mensaje por defecto</span></div><div class="test"><span class="chk">✓</span><span>http utils serverError acepta mensaje personalizado</span></div><div class="test"><span class="chk">✓</span><span>http utils forbidden usa mensaje por defecto</span></div><div class="test"><span class="chk">✓</span><span>http utils forbidden acepta mensaje personalizado</span></div>
+  </div>
+  <div class="suite">
+    <div class="suite-head">
+      <span class="file">📄 auth.test.ts</span>
+      <span class="badge">10/10</span>
+    </div>
+    <div class="test"><span class="chk">✓</span><span>withAuth middleware rechaza cuando falta bearer token</span></div><div class="test"><span class="chk">✓</span><span>withAuth middleware rechaza cuando supabase devuelve sesion invalida</span></div><div class="test"><span class="chk">✓</span><span>withAuth middleware continua con perfil mínimo cuando syncAuthProfile falla</span></div><div class="test"><span class="chk">✓</span><span>withAuth middleware continua y adjunta usuario y perfil cuando token es valido</span></div><div class="test"><span class="chk">✓</span><span>requireRole middleware responde 403 cuando el rol no esta permitido</span></div><div class="test"><span class="chk">✓</span><span>requireRole middleware llama next cuando el rol esta permitido (desde authProfile)</span></div><div class="test"><span class="chk">✓</span><span>requireRole middleware usa el rol del authUser cuando no hay authProfile</span></div><div class="test"><span class="chk">✓</span><span>requireEventCreator middleware responde 403 cuando no es admin ni creador</span></div><div class="test"><span class="chk">✓</span><span>requireEventCreator middleware llama next cuando el usuario es admin</span></div><div class="test"><span class="chk">✓</span><span>requireEventCreator middleware llama next cuando el usuario tiene is_event_creator=true</span></div>
+  </div>
+  <div class="suite">
+    <div class="suite-head">
+      <span class="file">📄 chatService.test.ts</span>
+      <span class="badge">9/9</span>
+    </div>
+    <div class="test"><span class="chk">✓</span><span>isMember returns true when count &gt; 0</span></div><div class="test"><span class="chk">✓</span><span>isMember returns false when count is 0</span></div><div class="test"><span class="chk">✓</span><span>isMember returns false on DB error</span></div><div class="test"><span class="chk">✓</span><span>cleanupEmptyRoom deletes the room when member count is 0</span></div><div class="test"><span class="chk">✓</span><span>cleanupEmptyRoom does NOT delete the room when members remain</span></div><div class="test"><span class="chk">✓</span><span>purgeExpiredRooms returns empty array when no expired rooms</span></div><div class="test"><span class="chk">✓</span><span>purgeExpiredRooms returns the IDs of deleted rooms</span></div><div class="test"><span class="chk">✓</span><span>like → join room business rule two users liking the same event both become members of the same room</span></div><div class="test"><span class="chk">✓</span><span>like → join room business rule multiple likes by the same user do not duplicate membership</span></div>
+  </div>
+  <div class="suite">
+    <div class="suite-head">
+      <span class="file">📄 auth.routes.test.ts</span>
+      <span class="badge">32/32</span>
+    </div>
+    <div class="test"><span class="chk">✓</span><span>POST /auth/forgot-password responde 400 cuando falta el email</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/forgot-password responde 400 cuando el email tiene formato invalido</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/forgot-password responde 400 cuando el email no tiene dominio</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/forgot-password responde 200 con mensaje seguro cuando el email es valido</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/forgot-password responde 200 con el mismo mensaje aunque el email no este registrado</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/reset-password responde 400 cuando faltan token y contrasena</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/reset-password responde 400 cuando falta solo el token</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/reset-password responde 400 cuando la contrasena tiene menos de 8 caracteres</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/reset-password responde 400 cuando la contrasena no tiene mayuscula</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/reset-password responde 400 cuando la contrasena no tiene minuscula</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/reset-password responde 400 cuando la contrasena no tiene numero</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/reset-password responde 400 cuando el token es invalido o expirado</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/reset-password responde 400 cuando supabase no devuelve usuario</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/reset-password actualiza la contrasena y responde 200 cuando todo es valido</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/reset-password responde 500 cuando falla la actualizacion en supabase</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/login responde 400 cuando falta el email o la contrasena</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/login responde 429 cuando supabase reporta rate limit</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/login responde 400 cuando las credenciales son invalidas</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/login responde 200 con user y session cuando el login es correcto</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/register responde 400 cuando faltan campos obligatorios</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/register responde 400 cuando la contrasena tiene menos de 6 caracteres</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/register rechaza crear cuentas admin desde el registro publico</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/register responde 400 cuando supabase falla al crear el usuario</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/register responde 500 cuando falla el upsert del perfil</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/register responde 201 y guarda el perfil cuando el registro es exitoso</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/register responde 201 sin upsert cuando supabase no devuelve usuario</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/logout responde 204 cuando el cierre de sesion es exitoso</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/logout responde 204 tambien sin token de autorizacion</span></div><div class="test"><span class="chk">✓</span><span>POST /auth/logout responde 500 cuando supabase falla al cerrar sesion</span></div><div class="test"><span class="chk">✓</span><span>GET /auth/session responde session null cuando no hay token</span></div><div class="test"><span class="chk">✓</span><span>GET /auth/session responde la session cuando el token es valido</span></div><div class="test"><span class="chk">✓</span><span>GET /auth/session responde 500 cuando supabase falla al obtener la sesion</span></div>
+  </div>
+  <h2>Cobertura de código (Istanbul)</h2>
+  <table>
+      <thead><tr><th>Archivo</th><th>Stmts</th><th>Branch</th><th>Funcs</th><th>Lines</th></tr></thead>
+      <tbody><tr>
+        <td class="mono">middleware/auth.ts</td>
+        <td style="color:#1e7e34">92.85%</td>
+        <td style="color:#9a6700">77.77%</td>
+        <td style="color:#1e7e34">100%</td>
+        <td style="color:#1e7e34">100%</td>
+      </tr><tr>
+        <td class="mono">routes/auth.routes.ts</td>
+        <td style="color:#1e7e34">100%</td>
+        <td style="color:#1e7e34">100%</td>
+        <td style="color:#1e7e34">100%</td>
+        <td style="color:#1e7e34">100%</td>
+      </tr><tr>
+        <td class="mono">services/chatService.ts</td>
+        <td style="color:#1e7e34">100%</td>
+        <td style="color:#9a6700">77.77%</td>
+        <td style="color:#1e7e34">100%</td>
+        <td style="color:#1e7e34">100%</td>
+      </tr><tr>
+        <td class="mono">utils/http.ts</td>
+        <td style="color:#1e7e34">100%</td>
+        <td style="color:#1e7e34">100%</td>
+        <td style="color:#1e7e34">100%</td>
+        <td style="color:#1e7e34">100%</td>
+      </tr>
+      <tr class="total"><td class="mono">TOTAL (todos los archivos)</td>
+        <td>97.59%</td><td>87.36%</td>
+        <td>100%</td><td>100%</td></tr>
+      </tbody></table>
+</div></body></html>
