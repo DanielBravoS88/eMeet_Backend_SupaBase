@@ -197,3 +197,237 @@ describe('POST /auth/reset-password', () => {
     expect(res.body.error).toBeDefined()
   })
 })
+
+describe('POST /auth/login', () => {
+  beforeEach(() => {
+    mockCreateAnonClient.mockReset()
+    mockCreateServiceRoleClient.mockReset()
+  })
+
+  it('responde 400 cuando falta el email o la contrasena', async () => {
+    const app = await createApp()
+    const res = await request(app).post('/auth/login').send({ email: 'a@b.com' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBeDefined()
+  })
+
+  it('responde 429 cuando supabase reporta rate limit', async () => {
+    mockCreateAnonClient.mockReturnValue({
+      auth: {
+        signInWithPassword: jest
+          .fn()
+          .mockResolvedValue({ data: null, error: { message: 'Email rate limit exceeded' } }),
+      },
+    })
+    const app = await createApp()
+    const res = await request(app).post('/auth/login').send({ email: 'a@b.com', password: 'x' })
+    expect(res.status).toBe(429)
+    expect(res.body.error).toBeDefined()
+  })
+
+  it('responde 400 cuando las credenciales son invalidas', async () => {
+    mockCreateAnonClient.mockReturnValue({
+      auth: {
+        signInWithPassword: jest
+          .fn()
+          .mockResolvedValue({ data: null, error: { message: 'Invalid login credentials' } }),
+      },
+    })
+    const app = await createApp()
+    const res = await request(app).post('/auth/login').send({ email: 'a@b.com', password: 'mala' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('Invalid login credentials')
+  })
+
+  it('responde 200 con user y session cuando el login es correcto', async () => {
+    mockCreateAnonClient.mockReturnValue({
+      auth: {
+        signInWithPassword: jest.fn().mockResolvedValue({
+          data: { user: { id: 'u1' }, session: { access_token: 'tok' } },
+          error: null,
+        }),
+      },
+    })
+    const app = await createApp()
+    const res = await request(app).post('/auth/login').send({ email: 'a@b.com', password: 'ok' })
+    expect(res.status).toBe(200)
+    expect(res.body.user).toEqual({ id: 'u1' })
+    expect(res.body.session).toEqual({ access_token: 'tok' })
+  })
+})
+
+describe('POST /auth/register', () => {
+  beforeEach(() => {
+    mockCreateAnonClient.mockReset()
+    mockCreateServiceRoleClient.mockReset()
+  })
+
+  it('responde 400 cuando faltan campos obligatorios', async () => {
+    const app = await createApp()
+    const res = await request(app).post('/auth/register').send({ email: 'a@b.com', password: 'Abcdef1' })
+    expect(res.status).toBe(400)
+  })
+
+  it('responde 400 cuando la contrasena tiene menos de 6 caracteres', async () => {
+    const app = await createApp()
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ name: 'Ana', email: 'a@b.com', password: 'Ab1' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/6 caracteres/)
+  })
+
+  it('rechaza crear cuentas admin desde el registro publico', async () => {
+    const app = await createApp()
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ name: 'Ana', email: 'a@b.com', password: 'Abcdef1', role: 'admin' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/admin/)
+  })
+
+  it('responde 400 cuando supabase falla al crear el usuario', async () => {
+    mockCreateAnonClient.mockReturnValue({
+      auth: {
+        signUp: jest.fn().mockResolvedValue({ data: { user: null }, error: { message: 'email ya usado' } }),
+      },
+    })
+    const app = await createApp()
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ name: 'Ana', email: 'a@b.com', password: 'Abcdef1' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('email ya usado')
+  })
+
+  it('responde 500 cuando falla el upsert del perfil', async () => {
+    mockCreateAnonClient.mockReturnValue({
+      auth: {
+        signUp: jest.fn().mockResolvedValue({ data: { user: { id: 'u1' }, session: null }, error: null }),
+      },
+    })
+    mockCreateServiceRoleClient.mockReturnValue({
+      from: jest.fn().mockReturnValue({
+        upsert: jest.fn().mockResolvedValue({ error: { message: 'fallo perfil' } }),
+      }),
+    })
+    const app = await createApp()
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ name: 'Ana', email: 'a@b.com', password: 'Abcdef1', bio: '  hola  ' })
+    expect(res.status).toBe(500)
+    expect(res.body.error).toBeDefined()
+  })
+
+  it('responde 201 y guarda el perfil cuando el registro es exitoso', async () => {
+    const upsert = jest.fn().mockResolvedValue({ error: null })
+    mockCreateAnonClient.mockReturnValue({
+      auth: {
+        signUp: jest
+          .fn()
+          .mockResolvedValue({ data: { user: { id: 'u1' }, session: { access_token: 't' } }, error: null }),
+      },
+    })
+    mockCreateServiceRoleClient.mockReturnValue({
+      from: jest.fn().mockReturnValue({ upsert }),
+    })
+    const app = await createApp()
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ name: 'Ana', email: 'a@b.com', password: 'Abcdef1' })
+    expect(res.status).toBe(201)
+    expect(res.body.user).toEqual({ id: 'u1' })
+    expect(upsert).toHaveBeenCalled()
+  })
+
+  it('responde 201 sin upsert cuando supabase no devuelve usuario', async () => {
+    const serviceClient = { from: jest.fn() }
+    mockCreateAnonClient.mockReturnValue({
+      auth: {
+        signUp: jest.fn().mockResolvedValue({ data: { user: null, session: null }, error: null }),
+      },
+    })
+    mockCreateServiceRoleClient.mockReturnValue(serviceClient)
+    const app = await createApp()
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ name: 'Ana', email: 'a@b.com', password: 'Abcdef1' })
+    expect(res.status).toBe(201)
+    expect(serviceClient.from).not.toHaveBeenCalled()
+  })
+})
+
+describe('POST /auth/logout', () => {
+  beforeEach(() => {
+    mockCreateAnonClient.mockReset()
+    mockCreateServiceRoleClient.mockReset()
+  })
+
+  it('responde 204 cuando el cierre de sesion es exitoso', async () => {
+    mockCreateAnonClient.mockReturnValue({
+      auth: { signOut: jest.fn().mockResolvedValue({ error: null }) },
+    })
+    const app = await createApp()
+    const res = await request(app).post('/auth/logout').set('Authorization', 'Bearer tok123')
+    expect(res.status).toBe(204)
+  })
+
+  it('responde 204 tambien sin token de autorizacion', async () => {
+    mockCreateAnonClient.mockReturnValue({
+      auth: { signOut: jest.fn().mockResolvedValue({ error: null }) },
+    })
+    const app = await createApp()
+    const res = await request(app).post('/auth/logout')
+    expect(res.status).toBe(204)
+  })
+
+  it('responde 500 cuando supabase falla al cerrar sesion', async () => {
+    mockCreateAnonClient.mockReturnValue({
+      auth: { signOut: jest.fn().mockResolvedValue({ error: { message: 'fallo signout' } }) },
+    })
+    const app = await createApp()
+    const res = await request(app).post('/auth/logout')
+    expect(res.status).toBe(500)
+    expect(res.body.error).toBeDefined()
+  })
+})
+
+describe('GET /auth/session', () => {
+  beforeEach(() => {
+    mockCreateAnonClient.mockReset()
+    mockCreateServiceRoleClient.mockReset()
+  })
+
+  it('responde session null cuando no hay token', async () => {
+    const app = await createApp()
+    const res = await request(app).get('/auth/session')
+    expect(res.status).toBe(200)
+    expect(res.body.session).toBeNull()
+  })
+
+  it('responde la session cuando el token es valido', async () => {
+    mockCreateAnonClient.mockReturnValue({
+      auth: {
+        getSession: jest
+          .fn()
+          .mockResolvedValue({ data: { session: { access_token: 'tok' } }, error: null }),
+      },
+    })
+    const app = await createApp()
+    const res = await request(app).get('/auth/session').set('Authorization', 'Bearer tok')
+    expect(res.status).toBe(200)
+    expect(res.body.session).toEqual({ access_token: 'tok' })
+  })
+
+  it('responde 500 cuando supabase falla al obtener la sesion', async () => {
+    mockCreateAnonClient.mockReturnValue({
+      auth: {
+        getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: { message: 'boom' } }),
+      },
+    })
+    const app = await createApp()
+    const res = await request(app).get('/auth/session').set('Authorization', 'Bearer tok')
+    expect(res.status).toBe(500)
+    expect(res.body.error).toBeDefined()
+  })
+})

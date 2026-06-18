@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
-import { withAuth } from './auth'
+import { withAuth, requireRole, requireEventCreator } from './auth'
 
 jest.mock('../lib/supabase', () => ({
   createAnonClient: jest.fn(),
@@ -124,5 +124,92 @@ describe('withAuth middleware', () => {
     expect(req.authProfile).toMatchObject({ id: 'user-1', role: 'user' })
     expect(next).toHaveBeenCalledTimes(1)
     expect(mockUnauthorized).not.toHaveBeenCalled()
+  })
+})
+
+function createStatusRes() {
+  const res = {
+    statusCode: 0,
+    body: undefined as unknown,
+    status(code: number) {
+      this.statusCode = code
+      return this
+    },
+    json(payload: unknown) {
+      this.body = payload
+      return this
+    },
+  }
+  return res as unknown as Response & { statusCode: number; body: { error?: string } }
+}
+
+describe('requireRole middleware', () => {
+  it('responde 403 cuando el rol no esta permitido', () => {
+    const req = { authProfile: { role: 'user' } } as unknown as Request
+    const res = createStatusRes()
+    const next = jest.fn() as unknown as NextFunction
+
+    requireRole('admin')(req, res, next)
+
+    expect(res.statusCode).toBe(403)
+    expect(res.body.error).toBeDefined()
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('llama next cuando el rol esta permitido (desde authProfile)', () => {
+    const req = { authProfile: { role: 'admin' } } as unknown as Request
+    const res = createStatusRes()
+    const next = jest.fn() as unknown as NextFunction
+
+    requireRole('admin', 'user')(req, res, next)
+
+    expect(next).toHaveBeenCalledTimes(1)
+    expect(res.statusCode).toBe(0)
+  })
+
+  it('usa el rol del authUser cuando no hay authProfile', () => {
+    const req = {
+      authUser: { app_metadata: { role: 'admin' } },
+    } as unknown as Request
+    const res = createStatusRes()
+    const next = jest.fn() as unknown as NextFunction
+
+    requireRole('admin')(req, res, next)
+
+    expect(next).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('requireEventCreator middleware', () => {
+  it('responde 403 cuando no es admin ni creador', () => {
+    const req = { authProfile: { role: 'user', is_event_creator: false } } as unknown as Request
+    const res = createStatusRes()
+    const next = jest.fn() as unknown as NextFunction
+
+    requireEventCreator(req, res, next)
+
+    expect(res.statusCode).toBe(403)
+    expect(res.body.error).toMatch(/modo creador/)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('llama next cuando el usuario es admin', () => {
+    const req = { authProfile: { role: 'admin', is_event_creator: false } } as unknown as Request
+    const res = createStatusRes()
+    const next = jest.fn() as unknown as NextFunction
+
+    requireEventCreator(req, res, next)
+
+    expect(next).toHaveBeenCalledTimes(1)
+  })
+
+  it('llama next cuando el usuario tiene is_event_creator=true', () => {
+    const req = { authProfile: { role: 'user', is_event_creator: true } } as unknown as Request
+    const res = createStatusRes()
+    const next = jest.fn() as unknown as NextFunction
+
+    requireEventCreator(req, res, next)
+
+    expect(next).toHaveBeenCalledTimes(1)
   })
 })

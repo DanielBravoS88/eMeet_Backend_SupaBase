@@ -1,5 +1,5 @@
 import type { Response } from 'express'
-import { badRequest, serverError, unauthorized } from './http'
+import { badRequest, forbidden, serverError, unauthorized } from './http'
 
 function createResponseMock() {
   const res = {
@@ -55,5 +55,23 @@ describe('http utils', () => {
 
     expect(res.status).toHaveBeenCalledWith(500)
     expect(res.json).toHaveBeenCalledWith({ error: 'fallo de base de datos' })
+  })
+
+  it('forbidden usa mensaje por defecto', () => {
+    const res = createResponseMock()
+
+    forbidden(res)
+
+    expect(res.status).toHaveBeenCalledWith(403)
+    expect(res.json).toHaveBeenCalledWith({ error: 'No tienes permisos para realizar esta accion' })
+  })
+
+  it('forbidden acepta mensaje personalizado', () => {
+    const res = createResponseMock()
+
+    forbidden(res, 'acceso denegado')
+
+    expect(res.status).toHaveBeenCalledWith(403)
+    expect(res.json).toHaveBeenCalledWith({ error: 'acceso denegado' })
   })
 })
