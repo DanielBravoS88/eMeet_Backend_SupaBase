@@ -83,11 +83,22 @@ router.get('/photo', async (req: Request, res: Response) => {
     }
 
     const contentType = googleRes.headers.get('content-type')
-    if (contentType) res.setHeader('Content-Type', contentType)
+    // Solo se sirven imágenes: si Google no devuelve un Content-Type de imagen,
+    // se rechaza para no reflejar contenido arbitrario en la respuesta binaria
+    // (mitiga XSS por MIME-sniffing al hacer res.send de un Buffer).
+    if (!contentType || !contentType.startsWith('image/')) {
+      return res.status(502).json({ error: 'La respuesta remota no es una imagen válida' })
+    }
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('X-Content-Type-Options', 'nosniff')
     res.setHeader('Cache-Control', 'public, max-age=86400')
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
 
     const buffer = await googleRes.arrayBuffer()
+    // El Content-Type ya se validó como image/* y se fuerza X-Content-Type-Options:
+    // nosniff (además de helmet), por lo que enviar el Buffer no expone XSS. Se
+    // suprime el patrón sintáctico genérico de Semgrep con justificación.
+    // nosemgrep: javascript.express.security.audit.xss.direct-response-write.direct-response-write
     res.send(Buffer.from(buffer))
   } catch (error) {
     console.error('Error in /photo:', error)
