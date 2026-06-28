@@ -26,8 +26,10 @@ const allowedOrigins = new Set(
     .filter(Boolean),
 )
 
-// Permite cualquier subdominio de vercel.app (preview deployments)
-const VERCEL_ORIGIN_RE = /^https:\/\/[a-z0-9-]+(\.vercel\.app)$/i
+// Permite solo los despliegues de ESTE proyecto en Vercel (producción y previews),
+// p. ej. e-meet-frontend-nine.vercel.app o e-meet-frontend-<hash>.vercel.app.
+// Se evita el comodín *.vercel.app para no aceptar sitios de terceros con credentials:true.
+const VERCEL_ORIGIN_RE = /^https:\/\/e-meet-frontend-[a-z0-9-]+\.vercel\.app$/i
 // Permite cualquier puerto de localhost en desarrollo
 const LOCALHOST_RE = /^http:\/\/localhost:\d+$/
 
