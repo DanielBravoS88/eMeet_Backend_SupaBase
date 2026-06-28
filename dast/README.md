@@ -38,4 +38,9 @@ En otra terminal, y solo despues de aprobar la descarga/ejecucion de ZAP:
 ./dast/run-api-baseline.ps1
 ```
 
+El script usa Docker cuando esta disponible. En Windows tambien admite ZAP
+portable mediante `ZAP_HOME`; si la variable no existe busca por defecto en
+`C:\tmp\ZAP_2.17.0`. El plan nativo importa exclusivamente
+`openapi-safe.yaml` y no contiene un trabajo de active scan.
+
 Los reportes quedan en `dast/reports/` y no se versionan.
