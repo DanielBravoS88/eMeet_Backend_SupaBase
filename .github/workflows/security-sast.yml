@@ -1,0 +1,120 @@
+# ============================================================================
+#  SAST — Análisis Estático de Seguridad (eMeet Backend)
+#
+#  100% de solo lectura: estos jobs ESCANEAN el código y generan REPORTES.
+#  Ninguno modifica, formatea ni reescribe el código fuente.
+#  Tampoco ejecutan las pruebas unitarias (Jest), así que no afectan la
+#  suite de tests existente.
+#
+#  Herramientas:
+#    • CodeQL    → SAST profundo de GitHub para JavaScript/TypeScript
+#    • Semgrep   → SAST por reglas de seguridad (ruleset "auto")
+#    • npm audit → vulnerabilidades en dependencias (SCA)
+#
+#  Los resultados quedan: (a) como artifacts descargables en cada corrida y
+#  (b) en la pestaña "Security → Code scanning" (si el repo lo permite).
+#  Los pasos de subida a Code scanning usan continue-on-error para que el
+#  workflow NO se ponga en rojo si esa función no está habilitada.
+# ============================================================================
+name: SAST Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'   # Lunes 06:00 UTC (escaneo semanal)
+  workflow_dispatch: {}    # Permite ejecutarlo manualmente desde la pestaña Actions
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  # ── 1) CodeQL ──────────────────────────────────────────────────────────────
+  codeql:
+    name: CodeQL (JS/TS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inicializar CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+
+      - name: Analizar con CodeQL
+        uses: github/codeql-action/analyze@v3
+        continue-on-error: true   # no bloquea si Code scanning no está habilitado
+        with:
+          category: '/language:javascript-typescript'
+
+  # ── 2) Semgrep ─────────────────────────────────────────────────────────────
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: semgrep/semgrep
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Escanear con Semgrep (genera SARIF)
+        continue-on-error: true   # report-only: no falla aunque haya hallazgos
+        run: |
+          semgrep scan \
+            --config=auto \
+            --sarif --output=semgrep.sarif \
+            --metrics=off
+          echo "--- Resumen legible ---"
+          semgrep scan --config=auto --metrics=off || true
+
+      - name: Subir SARIF a Code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+      - name: Guardar reporte como artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: semgrep-report
+          path: semgrep.sarif
+          if-no-files-found: ignore
+
+  # ── 3) npm audit (dependencias / SCA) ───────────────────────────────────────
+  npm-audit:
+    name: npm audit (dependencias)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Auditar dependencias (report-only)
+        run: |
+          # || true → reporta sin hacer fallar el workflow ni modificar nada
+          npm audit --audit-level=low --json > npm-audit.json || true
+          echo "--- Resumen legible ---"
+          npm audit || true
+
+      - name: Guardar reporte como artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-report
+          path: npm-audit.json
+          if-no-files-found: ignore
