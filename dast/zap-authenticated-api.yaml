@@ -12,17 +12,6 @@ env:
     progressToStdout: true
 
 jobs:
-  - type: replacer
-    parameters:
-      deleteAllRules: true
-    rules:
-      - description: Bearer token efimero para el rol DAST
-        url: ${DAST_TARGET}.*
-        matchType: req_header
-        matchString: Authorization
-        matchRegex: false
-        replacementString: Bearer ${DAST_TOKEN}
-
   - type: openapi
     parameters:
       apiFile: ${DAST_OPENAPI_FILE}

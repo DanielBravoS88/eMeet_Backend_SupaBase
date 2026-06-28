@@ -147,11 +147,13 @@ jobs:
 
             docker run --rm \
               --add-host=host.docker.internal:host-gateway \
-              -e DAST_TOKEN="$token" \
               -e DAST_ROLE="$role" \
               -e DAST_TARGET=http://host.docker.internal:4000 \
               -e DAST_OPENAPI_FILE=/zap/wrk/dast/openapi-authenticated-safe.yaml \
               -e DAST_REPORT_DIR="/zap/wrk/dast/reports/authenticated/${role}" \
+              -e ZAP_AUTH_HEADER=Authorization \
+              -e ZAP_AUTH_HEADER_VALUE="Bearer ${token}" \
+              -e ZAP_AUTH_HEADER_SITE=host.docker.internal \
               -v "$PWD:/zap/wrk:rw" \
               -t ghcr.io/zaproxy/zaproxy:stable \
               zap.sh -cmd -autorun /zap/wrk/dast/zap-authenticated-api.yaml
