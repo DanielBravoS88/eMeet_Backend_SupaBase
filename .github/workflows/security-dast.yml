@@ -1,0 +1,70 @@
+name: DAST Security Scan - Backend
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  zap-safe-api-baseline:
+    name: OWASP ZAP safe API baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias bloqueadas
+        run: npm ci
+
+      - name: Compilar backend
+        run: npm run build
+
+      - name: Iniciar backend local aislado
+        env:
+          PORT: '4000'
+          SUPABASE_URL: http://127.0.0.1:54321
+          SUPABASE_ANON_KEY: dast-local-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: dast-local-service-role-key
+          FRONTEND_ORIGIN: http://127.0.0.1:3000
+          BACKEND_PUBLIC_URL: http://127.0.0.1:4000
+          CLEANUP_ENABLED: 'false'
+        run: |
+          nohup node dist/server.js > /tmp/emeet-backend.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4000/health > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/emeet-backend.log
+          exit 1
+
+      - name: Ejecutar baseline seguro de ZAP
+        shell: pwsh
+        continue-on-error: true
+        run: ./dast/run-api-baseline.ps1
+
+      - name: Guardar reportes ZAP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-backend-safe-api-baseline
+          path: dast/reports/
+          if-no-files-found: warn
+
+      - name: Guardar log del backend
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-dast-server-log
+          path: /tmp/emeet-backend.log
+          if-no-files-found: ignore
