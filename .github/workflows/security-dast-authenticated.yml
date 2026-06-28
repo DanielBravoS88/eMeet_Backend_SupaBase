@@ -1,11 +1,6 @@
 name: DAST Authenticated API - Ephemeral
 
 on:
-  push:
-    branches: [prueba-dats]
-    paths:
-      - 'dast/**'
-      - '.github/workflows/security-dast-authenticated.yml'
   workflow_dispatch: {}
 
 permissions:
