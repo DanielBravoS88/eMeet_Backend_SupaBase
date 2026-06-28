@@ -1,0 +1,48 @@
+env:
+  contexts:
+    - name: backend-authenticated-local
+      urls:
+        - ${DAST_TARGET}
+      includePaths:
+        - ${DAST_TARGET}.*
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    continueOnFailure: false
+    progressToStdout: true
+
+jobs:
+  - type: replacer
+    parameters:
+      deleteAllRules: true
+    rules:
+      - description: Bearer token efimero para el rol DAST
+        url: ${DAST_TARGET}.*
+        matchType: req_header
+        matchString: Authorization
+        matchRegex: false
+        replacementString: Bearer ${DAST_TOKEN}
+
+  - type: openapi
+    parameters:
+      apiFile: ${DAST_OPENAPI_FILE}
+      targetUrl: ${DAST_TARGET}
+      context: backend-authenticated-local
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: ${DAST_REPORT_DIR}
+      reportFile: ${DAST_ROLE}-authenticated.html
+      reportTitle: eMeet Backend - ZAP Authenticated ${DAST_ROLE}
+
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: ${DAST_REPORT_DIR}
+      reportFile: ${DAST_ROLE}-authenticated.json
+      reportTitle: eMeet Backend - ZAP Authenticated ${DAST_ROLE}

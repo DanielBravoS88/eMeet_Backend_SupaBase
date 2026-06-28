@@ -47,3 +47,16 @@ Los reportes quedan en `dast/reports/` y no se versionan.
 
 El resultado local verificado se documenta en
 [`BASELINE_RESULTS.md`](./BASELINE_RESULTS.md).
+
+## Fase autenticada efimera
+
+El workflow `.github/workflows/security-dast-authenticated.yml` crea un runner
+desechable con Supabase local, aplica copias temporales de los SQL existentes y
+genera cuentas ficticias `user`, `creator` y `admin`. Primero valida una matriz
+explicita de respuestas `200/401/403`; despues ejecuta ZAP pasivo con un token
+Bearer distinto por rol sobre `openapi-authenticated-safe.yaml`.
+
+Esta fase no modifica el runtime, no versiona claves o contrasenas, no ejecuta
+metodos de escritura y no contacta Supabase, Render ni pagos de produccion. El
+trigger `push` de `prueba-dats` es temporal para validar el workflow antes de
+dejarlo exclusivamente manual.
