@@ -44,3 +44,6 @@ portable mediante `ZAP_HOME`; si la variable no existe busca por defecto en
 `openapi-safe.yaml` y no contiene un trabajo de active scan.
 
 Los reportes quedan en `dast/reports/` y no se versionan.
+
+El resultado local verificado se documenta en
+[`BASELINE_RESULTS.md`](./BASELINE_RESULTS.md).
