@@ -1,0 +1,39 @@
+# ============================================================================
+#  Dependabot — actualización y monitoreo de dependencias (eMeet Backend)
+#
+#  Abre Pull Requests automáticos cuando hay versiones nuevas o parches de
+#  seguridad. NO modifica tu código directamente: cada cambio llega como un PR
+#  que tú revisas, pruebas (Jest debe pasar) y luego decides si fusionar.
+# ============================================================================
+version: 2
+updates:
+  # Dependencias de la app (npm)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencias"
+      - "seguridad"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    # Agrupa actualizaciones menores/patch para no inundar de PRs
+    groups:
+      dependencias-menores:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Las propias GitHub Actions usadas en los workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "ci"
+    commit-message:
+      prefix: "ci"

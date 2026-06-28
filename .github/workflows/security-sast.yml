@@ -118,3 +118,24 @@ jobs:
           name: npm-audit-report
           path: npm-audit.json
           if-no-files-found: ignore
+
+  # ── 4) Gitleaks (secret scanning) ───────────────────────────────────────────
+  #  Busca claves/tokens/credenciales filtrados en el código y en TODO el
+  #  historial de git (fetch-depth: 0). Crítico en este proyecto por las claves
+  #  de Supabase / Mercado Pago / Transbank. Report-only: no falla el workflow.
+  secret-scan:
+    name: Gitleaks (secretos)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout (historial completo)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Escanear secretos con Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true   # report-only: informa pero no bloquea
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'true'
