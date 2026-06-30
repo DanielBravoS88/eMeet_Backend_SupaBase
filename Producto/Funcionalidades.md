@@ -141,7 +141,7 @@
 | Notificaciones push | Media | Mencionadas en roadmap; sin implementación actual |
 | PWA (Progressive Web App) | Baja | Sin `manifest.json` ni service worker |
 | Modo oscuro / claro | Baja | Solo modo oscuro disponible actualmente |
-| Pruebas automatizadas E2E (Playwright) | Media | El backend tiene suite Vitest parcial; el frontend no tiene tests E2E |
+| Pruebas automatizadas E2E (Playwright) | Media | El backend tiene suite con Jest + Supertest; falta E2E end-to-end |
 | Perfil expandido de locatario (analítica) | Media | Panel básico existe; analítica avanzada pendiente |
 | Flujo de reporte del usuario final | Media | Solo visible en panel admin; el usuario normal no puede reportar aún |
 

@@ -35,12 +35,12 @@ El sistema eMeet adopta una arquitectura de **tres capas directa sin BFF**:
 | Framework | Express.js 4.21 | API REST |
 | Runtime | Node.js 20 | Servidor |
 | Lenguaje | TypeScript 5.6 | Tipado estático |
-| ORM | Prisma 6.19 | Operaciones relacionales en PostgreSQL |
+| ORM | Prisma 7 (client) / 6.19 (CLI) | Operaciones relacionales en PostgreSQL |
 | DB Client | Supabase JS Client 2.56 | Auth, RPC y Storage |
 | Seguridad | Helmet 8.0 | Headers HTTP seguros |
-| CORS | cors + regex | Dinámico: `FRONTEND_ORIGIN`, localhost y `*.vercel.app` |
+| CORS | cors + regex | Dinámico: `FRONTEND_ORIGIN`, localhost y solo los despliegues de este proyecto en Vercel (`e-meet-frontend-*`; sin comodín `*.vercel.app`) |
 | Logging | Morgan 1.10 | Request logging |
-| Testing | Vitest 4.1 + Supertest | Tests unitarios e integración |
+| Testing | Jest 29 + ts-jest + Supertest | Tests unitarios e integración |
 
 **Grupos de rutas confirmados (src/app.ts)**:
 
@@ -417,4 +417,4 @@ flowchart TD
 | URL pública backend | ✅ Confirmado | https://emeet-backend-supabase-p0i6.onrender.com |
 | CI/CD del backend | ✅ Confirmado | GitHub → Render, automático desde rama `main` |
 | CI/CD del frontend | ✅ Confirmado | GitHub → Vercel, automático desde rama `main` |
-| Tests del backend | ✅ Confirmado | Vitest 4.1 + Supertest: `auth.test.ts`, `auth.routes.test.ts`, `chatService.test.ts`, `http.test.ts` |
+| Tests del backend | ✅ Confirmado | Jest 29 + ts-jest + Supertest: `auth.test.ts`, `auth.routes.test.ts`, `chatService.test.ts`, `http.test.ts` |

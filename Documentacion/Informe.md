@@ -46,7 +46,7 @@ Desde el punto de vista técnico, el proyecto permite aplicar y demostrar compet
 
 ## 4. Objetivo General
 
-Desarrollar una plataforma web móvil-first que permita a los usuarios descubrir, explorar y guardar eventos y lugares de interés cercanos, con soporte para comunidades en tiempo real, roles diferenciados (usuario, locatario, administrador) y gestión de contenido, utilizando como base tecnológica Next.js 14, Supabase y Google Maps Places API.
+Desarrollar una plataforma web móvil-first que permita a los usuarios descubrir, explorar y guardar eventos y lugares de interés cercanos, con soporte para comunidades en tiempo real, roles diferenciados (usuario y administrador, con "modo creador" para publicar eventos) y gestión de contenido, utilizando como base tecnológica Next.js 14, Supabase y Google Maps Places API.
 
 ---
 
@@ -79,7 +79,7 @@ Desarrollar una plataforma web móvil-first que permita a los usuarios descubrir
 - Notificaciones push nativas.
 - PWA instalable en dispositivos móviles.
 - Sistema de reseñas detalladas propias (se usa Google Rating).
-- Pruebas E2E automatizadas completas (suite parcial implementada con Vitest).
+- Pruebas E2E automatizadas completas (ya existe suite unitaria/integración con Jest + Supertest).
 
 ---
 
@@ -158,10 +158,10 @@ El repositorio `eMeet_Backend_SupaBase` es el backend oficial del sistema eMeet.
 | Runtime | Node.js 20 |
 | Lenguaje | TypeScript 5.6 |
 | ORM / DB client | Prisma + Supabase JS Client |
-| Seguridad | Helmet, CORS dinámico (vercel.app + localhost), JWT RS256 |
+| Seguridad | Helmet, CORS dinámico (despliegues `e-meet-frontend-*` de Vercel + localhost; sin comodín `*.vercel.app`), JWT RS256 |
 | Logging | Morgan |
-| Testing | Vitest + Supertest |
-| Pagos | Mercado Pago SDK + Transbank WebPay Plus |
+| Testing | Jest + ts-jest + Supertest |
+| Pagos | Mercado Pago + Transbank WebPay Plus (vía HTTP/REST directo, sin SDK) |
 
 ### Estructura de rutas (`src/app.ts`):
 
@@ -225,7 +225,7 @@ URL del proyecto Supabase: https://supabase.com/dashboard/project/ksghpwonmnxmbh
 | Campañas de promoción | ✅ Implementado | Locatarios crean campañas vinculadas a eventos |
 | Cupones QR | ✅ Implementado | Generación y validación de cupones en `/monetization` |
 | Proxy musical Deezer | ✅ Implementado | Route Handler `/api/deezer` en el frontend |
-| Pruebas unitarias (backend) | ✅ Implementado | Vitest + Supertest en `src/**/*.test.ts` |
+| Pruebas unitarias (backend) | ✅ Implementado | Jest + Supertest en `src/**/*.test.ts` |
 
 ---
 
@@ -238,7 +238,7 @@ URL del proyecto Supabase: https://supabase.com/dashboard/project/ksghpwonmnxmbh
 | Modo oscuro / claro toggle | Baja | Solo modo oscuro detectado |
 | Detalle expandido de evento | Media | Sin página dedicada de detalle por evento |
 | Recomendaciones personalizadas | Media | Actualmente solo por tipo y distancia |
-| Pruebas E2E completas | Alta | Suite parcial en Vitest; falta cobertura de flujos completos |
+| Pruebas E2E completas | Media | Ya hay suite unitaria/integración con Jest + Supertest; falta cobertura E2E de flujos completos |
 
 ---
 
@@ -277,7 +277,7 @@ URL del proyecto Supabase: https://supabase.com/dashboard/project/ksghpwonmnxmbh
 | @supabase/supabase-js | 2.103.0 | Cliente Supabase general |
 | @react-google-maps/api | 2.20.8 | Google Maps + Places API |
 | Recharts | 3.8.1 | Gráficos para panel admin |
-| Lucide React | 1.8.0 | Iconos SVG |
+| Lucide React | 1.17.0 | Iconos SVG |
 | React Icons | 5.3.0 | Set de iconos adicionales |
 | nextjs-toploader | 3.9.17 | Indicador de carga de página |
 
@@ -288,11 +288,11 @@ URL del proyecto Supabase: https://supabase.com/dashboard/project/ksghpwonmnxmbh
 | Express.js | 4.21 | Framework API REST del backend |
 | Node.js | 20 | Runtime del servidor backend |
 | TypeScript | 5.6 | Tipado estático en el backend |
-| Prisma | 6.19 | ORM para operaciones relacionales en PostgreSQL |
+| Prisma | 7 (client) / 6.19 (CLI) | ORM para operaciones relacionales en PostgreSQL |
 | Supabase JS Client | 2.56 | Auth, Realtime y Storage desde el backend |
 | Helmet | 8.0 | Seguridad HTTP (headers) |
 | Morgan | 1.10 | Logging de requests |
-| Vitest | 4.1 | Testing unitario e integración en backend |
+| Jest | 29 | Testing unitario e integración en backend (con ts-jest + Supertest) |
 | Supabase Auth | — | Autenticación JWT/OAuth (Google, Apple) |
 | Supabase PostgreSQL | — | Base de datos relacional (14 tablas) |
 | Supabase Realtime | — | WebSockets para chat en tiempo real |
@@ -348,7 +348,7 @@ El sistema sigue una arquitectura de **tres capas directa sin BFF**:
 |---|---|---|---|
 | Exposición de Google Maps API key en cliente | Media | Alto | Consultas proxied por el backend Express (`/places`) — implementado |
 | Dependencia de servicios externos (Supabase, Google) | Alta | Alto | Modo local (localStorage) como fallback |
-| Falta de pruebas automatizadas | Alta | Medio | Implementar suite de pruebas (Vitest, Playwright) |
+| Cobertura de pruebas insuficiente | Media | Medio | Suite con Jest + Supertest ya implementada; ampliar cobertura y agregar E2E (Playwright) |
 | Consumo no controlado de cuota de Google Places | Media | Medio | Limitar llamadas, implementar caché en backend |
 | Acceso no autorizado a rutas por rol | Baja | Alto | Middleware + validación server-side implementada |
 | Pérdida de datos sin backup de Supabase | Media | Alto | Configurar respaldo automático desde Supabase |
@@ -359,7 +359,7 @@ El sistema sigue una arquitectura de **tres capas directa sin BFF**:
 
 El proyecto eMeet ha alcanzado un estado de MVP funcional con las características principales implementadas: autenticación real con roles, descubrimiento de lugares por geolocalización, sistema de guardados, chat en tiempo real y paneles diferenciados para cada tipo de usuario. La base tecnológica elegida (Next.js 14, Supabase, Google Maps) es moderna, escalable y alineada con las prácticas actuales de la industria.
 
-Las principales áreas de mejora identificadas son la ampliación de la cobertura de pruebas automatizadas (suite Vitest parcialmente implementada en el backend) y la incorporación de funcionalidades como notificaciones push y detalle de eventos con multimedia.
+Las principales áreas de mejora identificadas son la ampliación de la cobertura de pruebas automatizadas (suite con Jest + Supertest ya implementada en el backend; falta E2E) y la incorporación de funcionalidades como notificaciones push y detalle de eventos con multimedia.
 
 El proyecto demuestra una integración coherente entre frontend y backend, un manejo claro de roles y autenticación, y una arquitectura preparada para escalar progresivamente.
 
@@ -378,6 +378,6 @@ Los siguientes aspectos fueron verificados directamente desde ambos repositorios
 | Integrantes del equipo | ✅ Confirmado | Daniel Bravo (DanielBravoS88), Francisco Levipil (Fr4nk017), Antonio Vivar (Antonio-Vivar07) |
 | Entorno de producción desplegado | ✅ Confirmado | Frontend: https://e-meet-frontend-nine.vercel.app/ · Backend: https://emeet-backend-supabase-p0i6.onrender.com |
 | Configuración de CI/CD | ✅ Confirmado | GitHub → Vercel (frontend) y GitHub → Render (backend), ambos automáticos desde `main` |
-| Tests existentes en el backend | ✅ Confirmado | Vitest 4.1 + Supertest: `auth.test.ts`, `auth.routes.test.ts`, `chatService.test.ts`, `http.test.ts` |
+| Tests existentes en el backend | ✅ Confirmado | Jest 29 + ts-jest + Supertest: `auth.test.ts`, `auth.routes.test.ts`, `chatService.test.ts`, `http.test.ts` |
 | URL del backend (`NEXT_PUBLIC_BACKEND_URL`) | ✅ Confirmado | https://emeet-backend-supabase-p0i6.onrender.com |
 | Proyecto Supabase | ✅ Confirmado | ID: ksghpwonmnxmbhmfpaog — Auth JWT RS256, OAuth Google/Apple, Realtime, Storage activos |

@@ -56,8 +56,8 @@ El backend es una API REST en **Express.js + Node 20 + TypeScript**, desplegado 
 | ORM / DB client | Prisma + Supabase JS Client |
 | Seguridad | Helmet, CORS dinámico, JWT RS256 |
 | Logging | Morgan |
-| Pagos | Mercado Pago SDK, Transbank WebPay Plus |
-| Testing | Vitest + Supertest |
+| Pagos | Mercado Pago y Transbank WebPay Plus (vía HTTP/REST directo, sin SDK) |
+| Testing | Jest + ts-jest + Supertest |
 
 ### Grupos de rutas confirmados (src/app.ts):
 
@@ -144,9 +144,11 @@ El backend es una API REST en **Express.js + Node 20 + TypeScript**, desplegado 
 | `SUPABASE_URL` | URL del proyecto Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | Clave service role para operaciones admin |
 | `SUPABASE_ANON_KEY` | Clave anónima para operaciones de cliente |
-| `JWT_SECRET` | Secreto para validación de tokens |
 | `FRONTEND_ORIGIN` | Origen(s) permitidos por CORS (separados por coma) |
-| `MERCADOPAGO_ACCESS_TOKEN` | Credencial de Mercado Pago |
+| `BACKEND_PUBLIC_URL` | URL pública del backend (usada en webhooks y logs) |
+| `MERCADO_PAGO_ACCESS_TOKEN` | Credencial de Mercado Pago |
+| `TRANSBANK_ENV` | `integration` o `production` |
+| `TRANSBANK_COMMERCE_CODE` | Código de comercio de Transbank WebPay |
 | `TRANSBANK_API_KEY` | Credencial de Transbank WebPay |
 | `GOOGLE_MAPS_API_KEY` | Clave de Google Maps para Places API |
 | `PORT` | Puerto del servidor (4000 en desarrollo) |

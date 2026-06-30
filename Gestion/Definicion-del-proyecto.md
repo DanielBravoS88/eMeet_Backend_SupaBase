@@ -22,7 +22,7 @@
 
 ## 3. Descripción del Proyecto
 
-eMeet es una plataforma web móvil-first que conecta a personas con eventos, bares, restaurantes y lugares de interés cercanos. Utiliza una mecánica de descubrimiento tipo swipe (deslizar tarjetas) combinada con geolocalización en tiempo real, un sistema de roles diferenciados (usuario, locatario, administrador) y comunidades de chat por lugar.
+eMeet es una plataforma web móvil-first que conecta a personas con eventos, bares, restaurantes y lugares de interés cercanos. Utiliza una mecánica de descubrimiento tipo swipe (deslizar tarjetas) combinada con geolocalización en tiempo real, un sistema de roles diferenciados (usuario y administrador; los usuarios pueden activar el "modo creador" para publicar eventos) y comunidades de chat por lugar.
 
 El proyecto está compuesto por dos repositorios:
 - **`eMeet_frontend`**: frontend desarrollado en Next.js 14, React 18, TypeScript y Tailwind CSS.
@@ -118,7 +118,7 @@ Desarrollar una plataforma web móvil-first que permita a los usuarios descubrir
 | Cuota de Google Maps API agotada | Media | Alto | Implementar caché en backend Express (/places), limitar llamadas |
 | Pérdida de datos en Supabase | Baja | Alto | Configurar backups automáticos |
 | Conflictos en ramas de Git | Media | Medio | Estrategia de ramas clara (ver Estrategia-de-ramas.md) |
-| Sin pruebas automatizadas | Alta | Medio | Pruebas manuales documentadas antes de entrega |
+| Cobertura de pruebas insuficiente | Media | Medio | Suite con Jest + Supertest ya implementada (`npm test`); ampliar cobertura según evolucione la API |
 
 ---
 
