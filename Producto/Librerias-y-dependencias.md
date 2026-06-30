@@ -8,7 +8,7 @@
 
 | Librería | Versión | Rol |
 |---|---|---|
-| **express** | ^4.21.2 | Framework HTTP minimalista para API REST en Node.js |
+| **express** | ^4.21.0 | Framework HTTP minimalista para API REST en Node.js |
 
 ### Decisión técnica
 Express.js fue elegido por su madurez, ecosistema amplio y flexibilidad para definir middlewares y rutas de forma granular. El servidor escucha en el puerto 4000 (desarrollo) y en el puerto configurado por variable de entorno en producción (Render).
@@ -21,7 +21,7 @@ Express.js fue elegido por su madurez, ecosistema amplio y flexibilidad para def
 |---|---|---|
 | **Node.js** | 20 | Runtime del servidor (versión de producción en Render) |
 | **TypeScript** | ^5.6.3 | Tipado estático estricto (`strict: true`) |
-| **tsx** | ^4.19.3 | Ejecutor TypeScript para desarrollo con hot reload (`npm run dev`) |
+| **tsx** | ^4.19.1 | Ejecutor TypeScript para desarrollo con hot reload (`npm run dev`) |
 
 ---
 
@@ -29,8 +29,8 @@ Express.js fue elegido por su madurez, ecosistema amplio y flexibilidad para def
 
 | Librería | Versión | Rol |
 |---|---|---|
-| **@prisma/client** | ^6.19.0 | ORM para operaciones relacionales tipadas sobre Supabase PostgreSQL |
-| **prisma** | ^6.19.0 | CLI de Prisma (migrations, generate, studio) |
+| **@prisma/client** | ^7.7.0 | ORM para operaciones relacionales tipadas sobre Supabase PostgreSQL |
+| **prisma** | ^6.19.3 | CLI de Prisma (migrations, generate, studio) |
 | **@supabase/supabase-js** | ^2.56.0 | Cliente JavaScript de Supabase (Auth, RPC, Storage, Realtime desde el backend) |
 
 ### Uso en el proyecto
@@ -52,11 +52,11 @@ SUPABASE_ANON_KEY=
 | Librería | Versión | Rol |
 |---|---|---|
 | **helmet** | ^8.0.0 | Configura headers HTTP de seguridad (CSP, HSTS, X-Frame-Options, etc.) |
-| **cors** | ^2.8.5 | Configura CORS dinámico: permite `FRONTEND_ORIGIN`, localhost y `*.vercel.app` |
+| **cors** | ^2.8.5 | CORS dinámico: permite `FRONTEND_ORIGIN`, localhost y los despliegues de **este** proyecto en Vercel |
 | **morgan** | ^1.10.0 | Logger de requests HTTP (método, ruta, status, tiempo de respuesta) |
 
 ### Uso en el proyecto
-Los tres middlewares se configuran globalmente en `src/app.ts` y se aplican a todas las rutas. El CORS usa una función dinámica para aceptar múltiples orígenes separados por coma (`FRONTEND_ORIGIN`).
+Los tres middlewares se configuran globalmente en `src/app.ts` y se aplican a todas las rutas. El CORS usa una función dinámica que acepta: los orígenes de `FRONTEND_ORIGIN` (separados por coma), cualquier `localhost:<puerto>`, y solo los despliegues de **este** proyecto en Vercel mediante la regex `^https://e-meet-frontend-[a-z0-9-]+\.vercel\.app$`. **No** se usa el comodín `*.vercel.app` (evitado a propósito para no aceptar sitios de terceros con `credentials: true`).
 
 ---
 
@@ -72,17 +72,19 @@ La verificación JWT se realiza en `src/middleware/auth.ts` usando el cliente Su
 
 ## 6. Pagos
 
-| Librería | Versión | Rol |
+| Integración | Implementación | Rol |
 |---|---|---|
-| **mercadopago** | (SDK oficial) | Integración con Mercado Pago: Checkout + Webhook de confirmación |
-| **transbank-sdk** | (SDK oficial) | Integración con Transbank WebPay Plus |
+| **Mercado Pago** | HTTP `fetch` directo a la API REST (sin SDK) | Checkout + webhook de confirmación |
+| **Transbank WebPay Plus** | HTTP `fetch` directo a la API REST (sin SDK) | Pagos con tarjeta de débito/crédito |
 
 ### Uso en el proyecto
-Ambas librerías se usan en `src/routes/monetization.routes.ts` para procesar pagos en Chile. Mercado Pago cubre el flujo de pago online con checkout y webhook de confirmación. Transbank WebPay Plus cubre pagos con tarjeta de débito/crédito.
+Los pagos se procesan en `src/routes/monetization.routes.ts` mediante **llamadas HTTP directas** (`fetch`) a las APIs REST de Mercado Pago (`https://api.mercadopago.com/checkout/preferences`) y Transbank — **no se usan los SDKs `mercadopago` ni `transbank-sdk`** (no están en `package.json`). Las credenciales se leen desde variables de entorno.
 
 ### Variables de entorno requeridas
 ```
-MERCADOPAGO_ACCESS_TOKEN=
+MERCADO_PAGO_ACCESS_TOKEN=
+TRANSBANK_ENV=integration   # o "production"
+TRANSBANK_COMMERCE_CODE=
 TRANSBANK_API_KEY=
 ```
 
@@ -105,9 +107,9 @@ GOOGLE_MAPS_API_KEY=
 
 ## 8. Validación de Datos
 
-| Librería | Versión | Rol |
-|---|---|---|
-| **zod** | (via schemas) | Validación de schemas en `src/schemas/monetization.schema.ts` |
+| Implementación | Rol |
+|---|---|
+| **Validación manual (type guards en TypeScript)** | `src/schemas/monetization.schema.ts` valida los cuerpos de las requests con funciones propias (`isOneOf`, parsers `parseXInput`). **No se usa `zod`** ni otra librería de validación (no está en `package.json`). |
 
 ---
 
@@ -115,8 +117,11 @@ GOOGLE_MAPS_API_KEY=
 
 | Librería | Versión | Rol |
 |---|---|---|
-| **vitest** | ^4.1.0 | Framework de testing unitario e integración (compatible con TypeScript) |
-| **supertest** | (devDependency) | Testing de endpoints HTTP de Express sin levantar el servidor real |
+| **jest** | ^29.7.0 | Framework de testing unitario e integración (`npm test` = `jest --runInBand`) |
+| **ts-jest** | ^29.2.5 | Transpila TypeScript para Jest |
+| **supertest** | ^7.2.2 | Testing de endpoints HTTP de Express sin levantar el servidor real |
+
+> El framework de pruebas es **Jest** (con `ts-jest`), no Vitest.
 
 ### Tests existentes
 | Archivo | Tipo |
@@ -149,11 +154,11 @@ GOOGLE_MAPS_API_KEY=
 | **Base de datos / ORM** | @prisma/client, prisma, @supabase/supabase-js |
 | **Seguridad** | helmet, cors |
 | **Logging** | morgan |
-| **Pagos** | mercadopago, transbank-sdk |
+| **Pagos** | Mercado Pago y Transbank vía HTTP/REST directo (sin SDK) |
 | **Mapas** | Google Maps Places API (HTTP proxy) |
-| **Validación** | zod |
-| **Testing** | vitest, supertest |
-| **Tipado** | typescript, @types/express, @types/node |
+| **Validación** | Manual (type guards), sin librería |
+| **Testing** | jest, ts-jest, supertest |
+| **Tipado** | typescript, @types/express, @types/node, @types/cors, @types/morgan, @types/supertest |
 
 ---
 
@@ -162,6 +167,6 @@ GOOGLE_MAPS_API_KEY=
 | Observación | Descripción |
 |---|---|
 | Prisma en `dependencies` (no devDependencies) | Confirma uso en runtime de producción, no solo en desarrollo |
-| CORS dinámico | Acepta múltiples orígenes via `FRONTEND_ORIGIN` (separados por coma) y cualquier subdominio `*.vercel.app` |
+| CORS dinámico y acotado | Acepta orígenes de `FRONTEND_ORIGIN` (separados por coma), cualquier `localhost:<puerto>` y solo los despliegues de **este** proyecto en Vercel (regex `e-meet-frontend-*`). Se evita el comodín `*.vercel.app` por seguridad |
 | Service Role Key solo en backend | `SUPABASE_SERVICE_ROLE_KEY` nunca debe exponerse al cliente; solo se usa en el backend y en Route Handlers admin del frontend |
 | Sin librería de rate limiting | No se detecta `express-rate-limit`; recomendable agregar en producción |

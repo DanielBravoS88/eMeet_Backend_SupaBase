@@ -37,10 +37,10 @@ src/
 │   └── express.d.ts        ← Extensión del tipo Request de Express (userId, user)
 ├── middleware/
 │   ├── auth.ts             ← Middleware JWT: verifica Bearer token con Supabase Auth
-│   └── auth.test.ts        ← Tests unitarios del middleware de autenticación (Vitest)
+│   └── auth.test.ts        ← Tests unitarios del middleware de autenticación (Jest)
 ├── routes/
 │   ├── auth.routes.ts      ← POST /auth/login, /register, /logout, /reset-password
-│   ├── auth.routes.test.ts ← Tests de integración de rutas de autenticación (Vitest + Supertest)
+│   ├── auth.routes.test.ts ← Tests de integración de rutas de autenticación (Jest + Supertest)
 │   ├── profile.routes.ts   ← GET y PATCH /profile, upload de avatar a Supabase Storage
 │   ├── events.routes.ts    ← like, save, CRUD de eventos de locatario
 │   ├── events.ts           ← Lógica auxiliar de eventos
@@ -51,15 +51,15 @@ src/
 │   └── monetization.routes.ts ← tokens, pagos (MercadoPago/Transbank), QR, cupones, campañas
 ├── services/
 │   ├── chatService.ts      ← Lógica de negocio del chat (rooms, messages)
-│   ├── chatService.test.ts ← Tests del servicio de chat (Vitest)
+│   ├── chatService.test.ts ← Tests del servicio de chat (Jest)
 │   └── placesService.ts    ← Integración con Google Maps Places API
 ├── schemas/
-│   └── monetization.schema.ts ← Validaciones Zod para endpoints de monetización
+│   └── monetization.schema.ts ← Validaciones manuales (type guards) para endpoints de monetización
 ├── constants/
 │   └── monetization.ts     ← Constantes del módulo de monetización
 └── utils/
     ├── http.ts             ← Helpers HTTP (respuestas estandarizadas, error handlers)
-    └── http.test.ts        ← Tests de los helpers HTTP (Vitest)
+    └── http.test.ts        ← Tests de los helpers HTTP (Jest)
 ```
 
 ---
@@ -84,7 +84,7 @@ Según el archivo `package.json` del proyecto:
 | **Desarrollo** | `npm run dev` | `tsx watch src/server.ts` — recarga automática con hot reload en `http://localhost:4000` |
 | **Build** | `npm run build` | `tsc` — compila TypeScript a `dist/` |
 | **Producción** | `npm start` | `node dist/server.js` — inicia el servidor con el build compilado |
-| **Tests** | `npm test` | `vitest run` — ejecuta todos los tests con Vitest |
+| **Tests** | `npm test` | `jest --runInBand` — ejecuta todos los tests con Jest |
 | **Pre-dev** | `predev` | Libera el puerto 4000 antes de iniciar (evita conflictos) |
 
 ---
@@ -104,7 +104,7 @@ Según el archivo `package.json` del proyecto:
 
 ---
 
-## 6. Tests Disponibles (Vitest + Supertest)
+## 6. Tests Disponibles (Jest + Supertest)
 
 | Archivo | Tipo | Descripción |
 |---|---|---|

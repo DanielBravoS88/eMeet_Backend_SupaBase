@@ -148,7 +148,7 @@ Para la entrega académica, se recomienda documentar la siguiente evidencia:
 ## 8. Recomendaciones
 
 1. **Automatizar pruebas E2E**: Implementar Playwright para los flujos críticos (login, swipe, chat) para detectar regresiones en futuros cambios.
-2. **Agregar pruebas unitarias**: Usar Vitest para testear funciones puras como helpers de formato, adaptadores y validaciones.
+2. **Ampliar pruebas unitarias**: El backend ya usa **Jest + Supertest**; extender la cobertura a más funciones puras (helpers de formato, adaptadores y validaciones).
 3. **Configurar un entorno de staging**: Usar variables de entorno separadas para no contaminar datos de producción durante las pruebas.
 4. **Revisar políticas RLS**: Verificar que las políticas de Row Level Security en Supabase impidan el acceso cruzado entre usuarios.
 5. **API keys protegidas**: La clave de Google Maps Places API ya es proxiada por el backend Express (`/places`), protegiendo la clave del cliente. Verificar que solo el mapa visual use la clave pública.
