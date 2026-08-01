@@ -1,0 +1,98 @@
+openapi: 3.0.3
+info:
+  title: eMeet Backend - DAST safe read-only surface
+  version: 1.0.0
+  description: >-
+    Subconjunto deliberadamente no destructivo para el baseline pasivo inicial.
+    No incluye escrituras, borrados, pagos, correo ni proxies externos.
+servers:
+  - url: http://host.docker.internal:4000
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        '200':
+          description: Backend disponible
+  /auth/session:
+    get:
+      operationId: getAnonymousSession
+      responses:
+        '200':
+          description: Estado de sesion anonima
+  /monetization/packs:
+    get:
+      operationId: getTokenPacks
+      responses:
+        '200':
+          description: Catalogo publico y estatico de packs
+  /profile:
+    get:
+      operationId: getProfileWithoutCredentials
+      security:
+        - bearerAuth: []
+      responses:
+        '401':
+          description: Token requerido
+  /events/liked:
+    get:
+      operationId: getLikedEventsWithoutCredentials
+      security:
+        - bearerAuth: []
+      responses:
+        '401':
+          description: Token requerido
+  /events/saved:
+    get:
+      operationId: getSavedEventsWithoutCredentials
+      security:
+        - bearerAuth: []
+      responses:
+        '401':
+          description: Token requerido
+  /chat/rooms:
+    get:
+      operationId: getChatRoomsWithoutCredentials
+      security:
+        - bearerAuth: []
+      responses:
+        '401':
+          description: Token requerido
+  /admin/stats:
+    get:
+      operationId: getAdminStatsWithoutCredentials
+      security:
+        - bearerAuth: []
+      responses:
+        '401':
+          description: Token requerido
+  /admin/reports:
+    get:
+      operationId: getAdminReportsWithoutCredentials
+      security:
+        - bearerAuth: []
+      responses:
+        '401':
+          description: Token requerido
+  /admin/finance:
+    get:
+      operationId: getAdminFinanceWithoutCredentials
+      security:
+        - bearerAuth: []
+      responses:
+        '401':
+          description: Token requerido
+  /monetization/wallet:
+    get:
+      operationId: getWalletWithoutCredentials
+      security:
+        - bearerAuth: []
+      responses:
+        '401':
+          description: Token requerido
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

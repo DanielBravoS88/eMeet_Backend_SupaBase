@@ -1,0 +1,187 @@
+name: DAST Authenticated API - Ephemeral
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dast-authenticated-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  authenticated-read-only:
+    name: ZAP authenticated read-only API
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar y compilar backend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Preparar proyecto Supabase efimero
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes supabase@2.108.0 init
+          mkdir -p supabase/migrations
+
+          migrations=(
+            '001_emeet_schema.sql:20260601000100_emeet_schema.sql'
+            '002_locatario_events.sql:20260601000200_locatario_events.sql'
+            '003_realtime_identity.sql:20260601000300_realtime_identity.sql'
+            '004_fix_policies.sql:20260601000400_fix_policies.sql'
+            '005_reports.sql:20260601000500_reports.sql'
+            '006_transactions_and_event_status.sql:20260601000600_transactions_and_event_status.sql'
+            '006_monetization_tokens_campaigns.sql:20260601000700_monetization_tokens_campaigns.sql'
+            '007_cleanup_event_payment_fields.sql:20260601000800_cleanup_event_payment_fields.sql'
+            '008_profiles_role_business_fields.sql:20260601000900_profiles_role_business_fields.sql'
+            '008_locatario_role_and_event_fields.sql:20260601001000_locatario_role_and_event_fields.sql'
+            '009_chat_expiry_and_security.sql:20260601001100_chat_expiry_and_security.sql'
+            '009_storage_policies.sql:20260601001200_storage_policies.sql'
+            '010_unify_user_role_remove_locatario.sql:20260601001300_unify_user_role_remove_locatario.sql'
+            '011_locatario_events_audio_track_id.sql:20260601001400_locatario_events_audio_track_id.sql'
+          )
+
+          for mapping in "${migrations[@]}"; do
+            source_file="${mapping%%:*}"
+            target_file="${mapping##*:}"
+            cp "supabase/${source_file}" "supabase/migrations/${target_file}"
+          done
+
+          cp dast/ci/finalize-local-schema.sql \
+            supabase/migrations/20260601001500_finalize_local_dast_schema.sql
+          : > supabase/seed.sql
+
+      - name: Iniciar Supabase efimero
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! npx --yes supabase@2.108.0 start \
+            --exclude analytics,edge-runtime,imgproxy,vector \
+            > /tmp/supabase-start.log 2>&1; then
+            sed -E 's/(KEY|SECRET|TOKEN)=[^ ]+/\1=[REDACTED]/g' /tmp/supabase-start.log
+            exit 1
+          fi
+
+          npx --yes supabase@2.108.0 status -o env > /tmp/supabase.env
+          set -a
+          source /tmp/supabase.env
+          set +a
+
+          echo "::add-mask::${ANON_KEY}"
+          echo "::add-mask::${SERVICE_ROLE_KEY}"
+          echo "::add-mask::${JWT_SECRET}"
+
+          {
+            echo "SUPABASE_URL=${API_URL}"
+            echo "SUPABASE_ANON_KEY=${ANON_KEY}"
+            echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}"
+            echo "DATABASE_URL=${DB_URL}"
+          } >> "$GITHUB_ENV"
+
+      - name: Iniciar backend efimero
+        env:
+          PORT: '4000'
+          FRONTEND_ORIGIN: http://127.0.0.1:3000
+          BACKEND_PUBLIC_URL: http://127.0.0.1:4000
+          CLEANUP_ENABLED: 'false'
+          GOOGLE_MAPS_API_KEY: ''
+          MERCADO_PAGO_ACCESS_TOKEN: ''
+          TRANSBANK_ENV: integration
+          TRANSBANK_COMMERCE_CODE: ''
+          TRANSBANK_API_KEY: ''
+        run: |
+          nohup node dist/server.js > /tmp/emeet-backend-auth-dast.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4000/health > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/emeet-backend-auth-dast.log
+          exit 1
+
+      - name: Crear identidades DAST efimeras
+        env:
+          DAST_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+          DAST_TOKEN_FILE: /tmp/dast-tokens.json
+        run: node dast/seed-auth-users.mjs
+
+      - name: Verificar matriz de autorizacion
+        env:
+          DAST_BACKEND_URL: http://127.0.0.1:4000
+          DAST_TOKEN_FILE: /tmp/dast-tokens.json
+        run: node dast/verify-authz.mjs
+
+      - name: Ejecutar ZAP autenticado por rol
+        shell: bash
+        env:
+          DAST_TOKEN_FILE: /tmp/dast-tokens.json
+        run: |
+          set -euo pipefail
+          for role in user creator admin; do
+            token="$(node -e \
+              "const t=require(process.argv[1]); process.stdout.write(t[process.argv[2]].accessToken)" \
+              "$DAST_TOKEN_FILE" "$role")"
+            echo "::add-mask::${token}"
+            mkdir -p "dast/reports/authenticated/${role}"
+            chmod 777 "dast/reports/authenticated/${role}"
+
+            docker run --rm \
+              --add-host=host.docker.internal:host-gateway \
+              -e DAST_ROLE="$role" \
+              -e DAST_TARGET=http://host.docker.internal:4000 \
+              -e DAST_OPENAPI_FILE=/zap/wrk/dast/openapi-authenticated-safe.yaml \
+              -e DAST_REPORT_DIR="/zap/wrk/dast/reports/authenticated/${role}" \
+              -e ZAP_AUTH_HEADER=Authorization \
+              -e ZAP_AUTH_HEADER_VALUE="Bearer ${token}" \
+              -e ZAP_AUTH_HEADER_SITE=host.docker.internal \
+              -v "$PWD:/zap/wrk:rw" \
+              -t ghcr.io/zaproxy/zaproxy:stable \
+              zap.sh -cmd -autorun /zap/wrk/dast/zap-authenticated-api.yaml
+          done
+
+      - name: Sanitizar tokens de reportes
+        id: sanitize
+        if: always()
+        env:
+          DAST_TOKEN_FILE: /tmp/dast-tokens.json
+          DAST_REPORT_DIR: dast/reports/authenticated
+        run: |
+          if [ -f "$DAST_TOKEN_FILE" ] && [ -d "$DAST_REPORT_DIR" ]; then
+            node dast/redact-report-tokens.mjs
+          fi
+
+      - name: Guardar reportes autenticados
+        if: ${{ always() && steps.sanitize.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-backend-authenticated-read-only
+          path: dast/reports/authenticated/
+          if-no-files-found: warn
+
+      - name: Guardar log backend
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-authenticated-dast-log
+          path: /tmp/emeet-backend-auth-dast.log
+          if-no-files-found: ignore
+
+      - name: Detener Supabase efimero
+        if: always()
+        shell: bash
+        run: npx --yes supabase@2.108.0 stop --no-backup || npx --yes supabase@2.108.0 stop || true

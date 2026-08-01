@@ -1,0 +1,44 @@
+env:
+  contexts:
+    - name: backend-local
+      urls:
+        - ${DAST_TARGET}
+      includePaths:
+        - ${DAST_TARGET}.*
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    continueOnFailure: false
+    progressToStdout: true
+
+jobs:
+  - type: openapi
+    parameters:
+      apiFile: ${DAST_OPENAPI_FILE}
+      targetUrl: ${DAST_TARGET}
+      context: backend-local
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: ${DAST_REPORT_DIR}
+      reportFile: backend-api-baseline.html
+      reportTitle: eMeet Backend - ZAP Safe API Baseline
+
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: ${DAST_REPORT_DIR}
+      reportFile: backend-api-baseline.json
+      reportTitle: eMeet Backend - ZAP Safe API Baseline
+
+  - type: report
+    parameters:
+      template: traditional-md
+      reportDir: ${DAST_REPORT_DIR}
+      reportFile: backend-api-baseline.md
+      reportTitle: eMeet Backend - ZAP Safe API Baseline

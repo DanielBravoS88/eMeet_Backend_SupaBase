@@ -12,3 +12,7 @@ coverage/
 
 # OS
 .DS_Store
+
+# Reportes DAST generados localmente
+dast/reports/
+dast/.tokens*.json

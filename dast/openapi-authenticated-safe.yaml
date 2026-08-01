@@ -1,0 +1,82 @@
+openapi: 3.0.3
+info:
+  title: eMeet Backend - authenticated read-only DAST surface
+  version: 1.0.0
+  description: Superficie GET sin operaciones destructivas ni integraciones externas.
+servers:
+  - url: http://host.docker.internal:4000
+paths:
+  /health:
+    get:
+      operationId: getHealthAuthenticatedScan
+      responses:
+        '200': { description: Backend disponible }
+  /profile:
+    get:
+      operationId: getProfileAuthenticatedScan
+      responses:
+        '200': { description: Perfil autenticado }
+        '401': { description: Token requerido }
+  /events/liked:
+    get:
+      operationId: getLikedAuthenticatedScan
+      responses:
+        '200': { description: Eventos con like }
+  /events/saved:
+    get:
+      operationId: getSavedAuthenticatedScan
+      responses:
+        '200': { description: Eventos guardados }
+  /events/locatario/public:
+    get:
+      operationId: getPublicCreatorEventsAuthenticatedScan
+      responses:
+        '200': { description: Eventos publicos }
+  /events/locatario:
+    get:
+      operationId: getOwnCreatorEventsAuthenticatedScan
+      responses:
+        '200': { description: Eventos propios }
+  /events/locatario/stats:
+    get:
+      operationId: getCreatorStatsAuthenticatedScan
+      responses:
+        '200': { description: Estadisticas de creador }
+  /chat/rooms:
+    get:
+      operationId: getRoomsAuthenticatedScan
+      responses:
+        '200': { description: Salas del usuario }
+  /chat/unread:
+    get:
+      operationId: getUnreadAuthenticatedScan
+      responses:
+        '200': { description: Conteo no leido }
+  /admin/stats:
+    get:
+      operationId: getAdminStatsAuthenticatedScan
+      responses:
+        '200': { description: Estadisticas admin }
+        '403': { description: Rol insuficiente }
+  /admin/reports:
+    get:
+      operationId: getAdminReportsAuthenticatedScan
+      responses:
+        '200': { description: Reportes admin }
+        '403': { description: Rol insuficiente }
+  /admin/finance:
+    get:
+      operationId: getAdminFinanceAuthenticatedScan
+      responses:
+        '200': { description: Finanzas admin }
+        '403': { description: Rol insuficiente }
+  /monetization/packs:
+    get:
+      operationId: getTokenPacksAuthenticatedScan
+      responses:
+        '200': { description: Packs publicos }
+  /monetization/coupons:
+    get:
+      operationId: getCouponsAuthenticatedScan
+      responses:
+        '200': { description: Cupones del creador }
